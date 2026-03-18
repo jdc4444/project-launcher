@@ -444,10 +444,10 @@ function renderCard(p, onclick) {
   const isRunning = status === 'running';
 
   return `
-    <div class="card">
+    <div class="card" data-name="${apiName}">
       <div class="card-thumb" onclick="${p.launchable ? `launchOrOpen('${apiName}', ${s.port || p.port || 'null'})` : `showDetail('${apiName}')`}">
         ${thumbUrl ? `<img src="${thumbUrl}" alt="${escHtml(p.name)}">` : `<span class="placeholder">${icons[p.type] || '○'}</span>`}
-        <div class="card-status ${status}" ${isRunning ? `data-name="${apiName}" onclick="event.stopPropagation();stopFromCard('${apiName}')" title="Click to stop"` : ''}></div>
+        <div class="status-dot card-status ${status}" ${isRunning ? `onclick="event.stopPropagation();stopFromCard('${apiName}')" title="Click to stop"` : ''}></div>
       </div>
       <div class="card-info" onclick="showDetail('${apiName}')">
         <div class="card-name">
@@ -521,12 +521,19 @@ function renderCollectionGrid() {
 
 let statusDebounce = null;
 function updateStatusDots() {
-  // Debounce re-renders to avoid flickering from rapid SSE events
-  clearTimeout(statusDebounce);
-  statusDebounce = setTimeout(() => {
-    if (currentCollection) renderCollectionGrid();
-    else if (!currentProject) renderGrid();
-  }, 200);
+  // Update status dots in-place without re-rendering the grid
+  document.querySelectorAll('.card[data-name]').forEach(card => {
+    const name = card.dataset.name;
+    const s = statuses[name];
+    const dot = card.querySelector('.status-dot');
+    if (dot) {
+      if (s?.status === 'running') {
+        dot.classList.add('running');
+      } else {
+        dot.classList.remove('running');
+      }
+    }
+  });
 }
 
 // --- Detail view ---
