@@ -530,6 +530,10 @@ async function launchOrOpen(name, port) {
   const data = await res.json();
   if (data.ok && data.port) {
     window.open(`http://localhost:${data.port}`, '_blank');
+  } else if (data.ok && data.nativeApp) {
+    // Native app launched, nothing to open in browser
+  } else if (!data.ok) {
+    alert(data.error || 'Failed to start');
   }
   loadProjects();
 }
