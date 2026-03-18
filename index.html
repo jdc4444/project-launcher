@@ -169,6 +169,7 @@
     <button class="filter-chip" data-filter="node" onclick="setFilter('node', this)">Node</button>
     <button class="filter-chip" data-filter="html" onclick="setFilter('html', this)">HTML</button>
     <button class="filter-chip" data-filter="python" onclick="setFilter('python', this)">Python</button>
+    <button class="filter-chip" data-filter="utility" onclick="setFilter('utility', this)">Utility</button>
   </div>
   <div class="topbar-right">
     <button class="sort-btn" id="sortBtn" onclick="cycleSort()">Recent</button>
@@ -348,7 +349,13 @@ function filterProjects() {
   else renderGrid();
 }
 function applyFilter(list) {
-  if (currentFilter !== 'all') list = list.filter(p => p.type === currentFilter || (currentFilter === 'node' && p.framework === 'vite'));
+  if (currentFilter === 'utility') {
+    list = list.filter(p => p.category === 'utility');
+  } else if (currentFilter === 'all') {
+    list = list.filter(p => p.category !== 'utility');
+  } else {
+    list = list.filter(p => p.category !== 'utility' && (p.type === currentFilter || (currentFilter === 'node' && p.framework === 'vite')));
+  }
   const q = document.getElementById('search').value.toLowerCase();
   if (q) list = list.filter(p => p.name.toLowerCase().includes(q) || (p.framework || '').includes(q));
   return list;
