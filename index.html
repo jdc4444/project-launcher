@@ -481,6 +481,37 @@
     color: var(--text2);
   }
   .empty h2 { font-size: 20px; margin-bottom: 8px; color: var(--text); }
+
+  /* Crawl progress bar */
+  .crawl-bar {
+    display: none;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 24px;
+    font-size: 12px;
+    color: var(--text2);
+    align-items: center;
+    gap: 12px;
+  }
+  .crawl-bar.active { display: flex; }
+  .crawl-progress {
+    flex: 1;
+    max-width: 300px;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .crawl-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s;
+  }
+  .crawl-active {
+    color: var(--accent);
+    font-weight: 500;
+  }
 </style>
 </head>
 <body>
@@ -497,6 +528,13 @@
     <button class="filter-chip" data-filter="swift" onclick="setFilter('swift', this)">Swift</button>
   </div>
   <button class="refresh-btn" onclick="loadProjects(true)">↻</button>
+</div>
+
+<div class="crawl-bar" id="crawlBar">
+  <span class="spinner"></span>
+  <span id="crawlText">Capturing screenshots...</span>
+  <div class="crawl-progress"><div class="crawl-progress-fill" id="crawlFill" style="width:0%"></div></div>
+  <span class="crawl-active" id="crawlActive"></span>
 </div>
 
 <div class="grid" id="grid"></div>
@@ -538,14 +576,30 @@ evtSource.addEventListener('status', (e) => {
 evtSource.addEventListener('screenshot', (e) => {
   try {
     const data = JSON.parse(e.data);
-    // If we're on the detail view for this project, refresh it
     if (currentProject && currentProject.name === data.name) {
       fetch(`/api/projects/${encodeURIComponent(data.name)}`)
         .then(r => r.json())
         .then(p => { currentProject = p; renderDetail(); });
     }
-    // Also refresh grid thumbnails
+    // Refresh grid to show new thumbnail
     loadProjects();
+  } catch {}
+});
+evtSource.addEventListener('crawl', (e) => {
+  try {
+    const data = JSON.parse(e.data);
+    const bar = document.getElementById('crawlBar');
+    if (data.running) {
+      bar.classList.add('active');
+      const pct = data.total > 0 ? Math.round(((data.done + data.failed) / data.total) * 100) : 0;
+      document.getElementById('crawlFill').style.width = pct + '%';
+      document.getElementById('crawlText').textContent =
+        `Capturing screenshots... ${data.done + data.failed}/${data.total}`;
+      document.getElementById('crawlActive').textContent =
+        data.active.length > 0 ? data.active.join(', ') : '';
+    } else {
+      bar.classList.remove('active');
+    }
   } catch {}
 });
 
