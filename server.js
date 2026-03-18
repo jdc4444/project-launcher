@@ -3,7 +3,7 @@ const path = require('path');
 const { scanProjects, syncLaunchJSON } = require('./lib/scanner');
 const { getVersionHistory, getCurrentCommit } = require('./lib/git');
 const { startProject, stopProject, getStatus, getLogs, getAllStatuses, sseClients, broadcast } = require('./lib/processes');
-const { captureScreenshot, getScreenshots, getLatestScreenshot, getScreenshotPath } = require('./lib/screenshots');
+const { captureScreenshot, getScreenshots, getLatestScreenshot, getScreenshotPath, listCandidateImages, setScreenshotFromFile } = require('./lib/screenshots');
 const { crawlAll, getCrawlStatus } = require('./lib/crawler');
 
 const app = express();
@@ -140,6 +140,50 @@ app.get('/screenshots/:name(*)', (req, res) => {
   const filePath = getScreenshotPath(name, file);
   if (!filePath) return res.status(404).send('Not found');
   res.sendFile(filePath);
+});
+
+// List candidate images from project directory (for image picker)
+app.get('/api/projects/:name(*)/candidates', (req, res) => {
+  const name = decodeURIComponent(req.params.name);
+  const project = findProject(name);
+  if (!project) return res.status(404).json({ error: 'Not found' });
+  const candidates = listCandidateImages(project.dir);
+  res.json(candidates.map(c => ({ relPath: c.relPath, size: c.size, name: c.name })));
+});
+
+// Serve a candidate image for preview
+app.get('/api/projects/:name(*)/candidates/:relPath(*)', (req, res) => {
+  const name = decodeURIComponent(req.params.name);
+  const relPath = decodeURIComponent(req.params.relPath);
+  const project = findProject(name);
+  if (!project) return res.status(404).send('Not found');
+  if (relPath.includes('..')) return res.status(400).send('Invalid');
+  const filePath = path.join(project.dir, relPath);
+  const fs = require('fs');
+  if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
+  res.sendFile(filePath);
+});
+
+// Set a candidate image as the project screenshot
+app.post('/api/projects/:name(*)/set-image', express.json(), (req, res) => {
+  const name = decodeURIComponent(req.params.name);
+  const project = findProject(name);
+  if (!project) return res.status(404).json({ error: 'Not found' });
+  const { relPath } = req.body;
+  if (!relPath || relPath.includes('..')) return res.status(400).json({ error: 'Invalid path' });
+  const absPath = path.join(project.dir, relPath);
+  const fs = require('fs');
+  if (!fs.existsSync(absPath)) return res.status(404).json({ error: 'File not found' });
+  const screenshotName = project.fullName || name;
+  const commit = getCurrentCommit(project.dir);
+  const sha = commit?.sha || 'current';
+  try {
+    setScreenshotFromFile(screenshotName, absPath, sha);
+    broadcast('screenshot', { name: screenshotName, sha });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/crawl', (req, res) => res.json(getCrawlStatus()));

@@ -113,6 +113,14 @@
   .console-output .stderr { color: var(--orange); }
   .console-output .system { color: var(--accent); }
 
+  .image-picker-section { margin-top: 24px; }
+  .image-picker-toggle { background: none; border: 1px solid var(--border); padding: 6px 14px; border-radius: 8px; color: var(--text2); cursor: pointer; font-size: 13px; transition: all 0.15s; }
+  .image-picker-toggle:hover { border-color: var(--accent); color: var(--text); }
+  .image-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-top: 12px; max-height: 400px; overflow-y: auto; padding: 4px; }
+  .candidate-img { border: 2px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer; transition: all 0.15s; }
+  .candidate-img:hover { border-color: var(--accent); transform: scale(1.02); }
+  .candidate-img img { width: 100%; height: 100px; object-fit: cover; display: block; }
+  .candidate-name { padding: 4px 8px; font-size: 10px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .timeline-section { margin-top: 32px; }
   .timeline-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
   .timeline-title .count { background: var(--surface2); padding: 2px 8px; border-radius: 10px; font-size: 12px; color: var(--text2); }
@@ -203,6 +211,7 @@ const evtSource = new EventSource('/api/status');
 evtSource.onmessage = (e) => {
   try { statuses = { ...statuses, ...JSON.parse(e.data) }; updateStatusDots(); } catch {}
 };
+let statusDetailTimer = null;
 evtSource.addEventListener('status', (e) => {
   try {
     const d = JSON.parse(e.data);
@@ -211,10 +220,13 @@ evtSource.addEventListener('status', (e) => {
     if (currentProject && (currentProject.name === d.name || currentProject.fullName === d.name)) {
       currentProject.status = d.status;
       currentProject.port = d.port || currentProject.port;
-      renderDetail();
+      // Debounce detail re-render — stop sends multiple events
+      clearTimeout(statusDetailTimer);
+      statusDetailTimer = setTimeout(() => renderDetail(), 300);
     }
   } catch {}
 });
+let screenshotRefreshTimer = null;
 evtSource.addEventListener('screenshot', (e) => {
   try {
     const d = JSON.parse(e.data);
@@ -222,7 +234,9 @@ evtSource.addEventListener('screenshot', (e) => {
       const apiName = currentProject.fullName || currentProject.name;
       fetch(`/api/projects/${encodeURIComponent(apiName)}`).then(r => r.json()).then(p => { currentProject = p; renderDetail(); });
     }
-    loadProjects();
+    // Debounce grid refresh — batch rapid screenshot events
+    clearTimeout(screenshotRefreshTimer);
+    screenshotRefreshTimer = setTimeout(() => loadProjects(), 2000);
   } catch {}
 });
 evtSource.addEventListener('crawl', (e) => {
@@ -582,8 +596,46 @@ function renderDetail() {
           </div>`;
         }).join('')}
       </div>
-    </div>` : ''}`;
+    </div>` : ''}
+    <div class="image-picker-section">
+      <button class="image-picker-toggle" onclick="toggleImagePicker('${encodeURIComponent(apiName)}')">📷 Change Image</button>
+      <div class="image-picker" id="imagePicker" style="display:none"></div>
+    </div>`;
   if (isRunning) loadLogs();
+}
+
+async function toggleImagePicker(apiName) {
+  const picker = document.getElementById('imagePicker');
+  if (picker.style.display !== 'none') { picker.style.display = 'none'; return; }
+  picker.innerHTML = '<div style="padding:20px;color:var(--text2)">Loading images...</div>';
+  picker.style.display = 'block';
+  try {
+    const res = await fetch(`/api/projects/${apiName}/candidates`);
+    const candidates = await res.json();
+    if (candidates.length === 0) {
+      picker.innerHTML = '<div style="padding:20px;color:var(--text2)">No images found in project directory</div>';
+      return;
+    }
+    picker.innerHTML = candidates.map(c => `
+      <div class="candidate-img" onclick="setProjectImage('${apiName}', '${c.relPath.replace(/'/g, "\\'")}')">
+        <img src="/api/projects/${apiName}/candidates/${encodeURIComponent(c.relPath)}" loading="lazy">
+        <div class="candidate-name">${c.relPath}</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    picker.innerHTML = `<div style="padding:20px;color:#e55">${err.message}</div>`;
+  }
+}
+
+async function setProjectImage(apiName, relPath) {
+  const res = await fetch(`/api/projects/${apiName}/set-image`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ relPath })
+  });
+  if (res.ok) {
+    document.getElementById('imagePicker').style.display = 'none';
+    navigate('detail', currentProject);
+  }
 }
 
 // --- Card actions ---
