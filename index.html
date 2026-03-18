@@ -535,6 +535,19 @@ evtSource.addEventListener('status', (e) => {
     }
   } catch {}
 });
+evtSource.addEventListener('screenshot', (e) => {
+  try {
+    const data = JSON.parse(e.data);
+    // If we're on the detail view for this project, refresh it
+    if (currentProject && currentProject.name === data.name) {
+      fetch(`/api/projects/${encodeURIComponent(data.name)}`)
+        .then(r => r.json())
+        .then(p => { currentProject = p; renderDetail(); });
+    }
+    // Also refresh grid thumbnails
+    loadProjects();
+  } catch {}
+});
 
 // --- Load projects ---
 async function loadProjects(force = false) {

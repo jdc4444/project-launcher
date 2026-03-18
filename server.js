@@ -84,6 +84,19 @@ app.post('/api/projects/:name/start', async (req, res) => {
 
   const result = await startProject(project);
   res.json(result);
+
+  // Auto-capture screenshot in background after start
+  if (result.ok && result.port) {
+    const commit = getCurrentCommit(project.dir);
+    const sha = commit?.sha || 'current';
+    captureScreenshot(name, result.port, sha)
+      .then(() => {
+        // Notify clients that a new screenshot is available
+        const { broadcast } = require('./lib/processes');
+        broadcast('screenshot', { name, sha });
+      })
+      .catch(err => console.log(`Auto-screenshot for ${name} failed: ${err.message}`));
+  }
 });
 
 // Stop project
