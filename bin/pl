@@ -1,0 +1,18 @@
+#\!/bin/bash
+# Start project-launcher server if not already running, then open in browser
+PORT=4900
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+if curl -s -o /dev/null -w '' "http://localhost:$PORT" 2>/dev/null; then
+  echo "Project Launcher already running on :$PORT"
+else
+  echo "Starting Project Launcher..."
+  cd "$DIR"
+  node server.js &
+  disown
+  for i in $(seq 1 10); do
+    sleep 1
+    curl -s -o /dev/null "http://localhost:$PORT" 2>/dev/null && break
+  done
+fi
+open "http://localhost:$PORT"
