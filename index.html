@@ -405,7 +405,6 @@ async function stopAll() {
     await fetch(`/api/projects/${encodeURIComponent(name)}/stop`, { method: 'POST' });
   }
   document.getElementById('stopAllBtn').textContent = 'Stop All';
-  loadProjects();
 }
 
 // --- Render cards ---
@@ -657,11 +656,11 @@ async function launchOrOpen(name, port) {
   } else if (!data.ok) {
     alert(data.error || 'Failed to start');
   }
-  loadProjects();
+  // SSE status events handle the dot update — no grid rebuild needed
 }
 async function stopFromCard(name) {
   await fetch(`/api/projects/${encodeURIComponent(name)}/stop`, { method: 'POST' });
-  loadProjects();
+  // SSE status events handle the dot update — no grid rebuild needed
 }
 
 // --- Actions ---
