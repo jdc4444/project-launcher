@@ -161,6 +161,13 @@ app.listen(PORT, () => {
   console.log(`Project Launcher running at http://localhost:${PORT}`);
   console.log(`Found ${projects.length} projects + ${totalChildren} sub-projects`);
 
+  // Detect already-running projects by checking their known ports
+  const { detectRunning } = require('./lib/processes');
+  const allProjects = projects.flatMap(p => p.children ? p.children : [p]);
+  detectRunning(allProjects).then(found => {
+    if (found > 0) console.log(`[startup] Detected ${found} already-running projects`);
+  });
+
   setTimeout(() => {
     console.log('[startup] Starting background screenshot crawl...');
     crawlAll(projects);
