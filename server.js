@@ -2,7 +2,7 @@ const express = require('express');
 const path = require('path');
 const { scanProjects, syncLaunchJSON } = require('./lib/scanner');
 const { getVersionHistory, getCurrentCommit } = require('./lib/git');
-const { startProject, stopProject, getStatus, getLogs, getAllStatuses, sseClients, broadcast } = require('./lib/processes');
+const { startProject, stopProject, getStatus, getLogs, getAllStatuses, sseClients, broadcast, startPortPoll } = require('./lib/processes');
 const { captureScreenshot, getScreenshots, getLatestScreenshot, getScreenshotPath, listCandidateImages, setScreenshotFromFile } = require('./lib/screenshots');
 const { crawlAll, getCrawlStatus } = require('./lib/crawler');
 
@@ -214,6 +214,9 @@ app.listen(PORT, () => {
   detectRunning(allProjects).then(found => {
     if (found > 0) console.log(`[startup] Detected ${found} already-running projects`);
   });
+
+  // Background port poll — lightweight TCP check every 5s
+  startPortPoll(projects);
 
   setTimeout(() => {
     console.log('[startup] Starting background screenshot crawl...');
