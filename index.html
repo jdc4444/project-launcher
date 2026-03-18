@@ -34,9 +34,9 @@
   }
   .topbar h1 { font-size: 18px; font-weight: 600; white-space: nowrap; }
   .breadcrumb { display: flex; align-items: center; gap: 4px; }
-  .breadcrumb a { color: var(--accent); text-decoration: none; font-size: 14px; cursor: pointer; }
+  .breadcrumb a { color: var(--accent); text-decoration: none; font-size: 18px; font-weight: 600; cursor: pointer; }
   .breadcrumb a:hover { text-decoration: underline; }
-  .breadcrumb .sep { color: var(--text2); font-size: 12px; }
+  .breadcrumb .sep { color: var(--text2); font-size: 14px; margin: 0 2px; }
   .breadcrumb .current { color: var(--text); font-size: 18px; font-weight: 600; }
 
   .search { flex: 1; max-width: 400px; padding: 8px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; outline: none; }
@@ -45,10 +45,16 @@
   .filter-chip { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-size: 12px; cursor: pointer; transition: all 0.15s; }
   .filter-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .filter-chip:hover:not(.active) { border-color: var(--text2); }
+  .topbar-right { display: flex; gap: 6px; margin-left: auto; align-items: center; }
+  .sort-btn { background: none; border: 1px solid var(--border); color: var(--text2); padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 11px; white-space: nowrap; }
+  .sort-btn:hover { border-color: var(--text); color: var(--text); }
+  .stop-all-btn { background: none; border: 1px solid var(--border); color: var(--red); padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 11px; opacity: 0.7; }
+  .stop-all-btn:hover { border-color: var(--red); opacity: 1; }
   .refresh-btn { background: none; border: 1px solid var(--border); color: var(--text2); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
   .refresh-btn:hover { border-color: var(--text); color: var(--text); }
 
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; padding: 24px; }
+  .section-label { grid-column: 1 / -1; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text2); padding: 8px 0 0; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; position: relative; }
   .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
   .card-thumb { width: 100%; height: 200px; background: var(--surface2); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
@@ -172,7 +178,11 @@
     <button class="filter-chip" data-filter="html" onclick="setFilter('html', this)">HTML</button>
     <button class="filter-chip" data-filter="python" onclick="setFilter('python', this)">Python</button>
   </div>
-  <button class="refresh-btn" onclick="loadProjects(true)">↻</button>
+  <div class="topbar-right">
+    <button class="sort-btn" id="sortBtn" onclick="cycleSort()">Recent</button>
+    <button class="stop-all-btn" id="stopAllBtn" onclick="stopAll()">Stop All</button>
+    <button class="refresh-btn" onclick="loadProjects(true)">↻</button>
+  </div>
 </div>
 
 <div class="crawl-bar" id="crawlBar">
@@ -189,6 +199,7 @@
 <script>
 let projects = [];
 let currentFilter = 'all';
+let currentSort = 'recent'; // 'recent', 'oldest', 'alpha'
 let currentProject = null;
 let currentCollection = null; // When viewing inside a collection
 let statuses = {};
@@ -350,6 +361,38 @@ function applyFilter(list) {
   if (q) list = list.filter(p => p.name.toLowerCase().includes(q) || (p.framework || '').includes(q));
   return list;
 }
+function sortProjects(list) {
+  const copy = [...list];
+  if (currentSort === 'alpha') {
+    copy.sort((a, b) => a.name.localeCompare(b.name));
+  } else {
+    // Sort by commit date, most recent first (or oldest first)
+    copy.sort((a, b) => {
+      const da = a.currentCommit?.date ? new Date(a.currentCommit.date) : new Date(0);
+      const db = b.currentCommit?.date ? new Date(b.currentCommit.date) : new Date(0);
+      return currentSort === 'recent' ? db - da : da - db;
+    });
+  }
+  return copy;
+}
+function cycleSort() {
+  const order = ['recent', 'oldest', 'alpha'];
+  currentSort = order[(order.indexOf(currentSort) + 1) % order.length];
+  const labels = { recent: 'Recent', oldest: 'Oldest', alpha: 'A-Z' };
+  document.getElementById('sortBtn').textContent = labels[currentSort];
+  if (currentCollection) renderCollectionGrid();
+  else renderGrid();
+}
+async function stopAll() {
+  const running = Object.entries(statuses).filter(([, s]) => s.status === 'running');
+  if (running.length === 0) return;
+  document.getElementById('stopAllBtn').textContent = 'Stopping...';
+  for (const [name] of running) {
+    await fetch(`/api/projects/${encodeURIComponent(name)}/stop`, { method: 'POST' });
+  }
+  document.getElementById('stopAllBtn').textContent = 'Stop All';
+  loadProjects();
+}
 
 // --- Render cards ---
 function renderCard(p, onclick) {
@@ -357,7 +400,7 @@ function renderCard(p, onclick) {
   const status = s.status || 'stopped';
   const screenshotName = p.fullName || p.name;
   const thumbUrl = p.latestScreenshot ? `/screenshots/${encodeURIComponent(screenshotName)}/${p.latestScreenshot.thumb}` : '';
-  const icons = { node: '⬡', html: '◇', python: '◆', swift: '◈', collection: '▣', electron: '◈', unknown: '○' };
+  const icons = { node: '⬡', html: '◇', python: '⬡', swift: '◇', collection: '⬡', electron: '◇', unknown: '○' };
   const badgeType = p.framework === 'electron-html' ? 'electron' : p.type;
 
   if (p.type === 'collection') {
@@ -402,7 +445,7 @@ function renderCard(p, onclick) {
       <div class="card-info">
         <div class="card-name">
           ${escHtml(p.name)} <span class="badge ${badgeType}">${badgeType}</span>
-          <button class="card-detail-btn" onclick="event.stopPropagation();showDetail('${apiName}')" title="Version history">+</button>
+          ${p.isGit ? `<button class="card-detail-btn" onclick="event.stopPropagation();showDetail('${apiName}')" title="Version history">+</button>` : ''}
         </div>
         <div class="card-meta">
           ${p.port ? `<span class="port-label">:${s.port || p.port}</span>` : ''}
@@ -424,12 +467,32 @@ function renderGrid() {
   }
   if (filtered.length === 0) return; // Still loading
 
-  grid.innerHTML = filtered.map((p, i) => {
-    const card = p.type === 'collection'
-      ? renderCard(p, `navigate('collection', projects.find(x => x.name === '${p.name.replace(/'/g, "\\'")}'))`)
-      : renderCard(p);
-    return card.replace('<div class="card"', `<div class="card" style="animation-delay:${i * 40}ms"`);
-  }).join('');
+  // Separate folders from projects
+  const folders = filtered.filter(p => p.type === 'collection');
+  const regular = sortProjects(filtered.filter(p => p.type !== 'collection'));
+
+  let html = '';
+  let idx = 0;
+
+  // Folders first in their own section
+  if (folders.length > 0) {
+    html += '<div class="section-label">Folders</div>';
+    html += folders.map((p, i) => {
+      const card = renderCard(p, `navigate('collection', projects.find(x => x.name === '${p.name.replace(/'/g, "\\'")}'))`);
+      return card.replace('<div class="card"', `<div class="card" style="animation-delay:${idx++ * 40}ms"`);
+    }).join('');
+  }
+
+  // Projects
+  if (regular.length > 0) {
+    if (folders.length > 0) html += '<div class="section-label">Projects</div>';
+    html += regular.map(p => {
+      const card = renderCard(p);
+      return card.replace('<div class="card"', `<div class="card" style="animation-delay:${idx++ * 40}ms"`);
+    }).join('');
+  }
+
+  grid.innerHTML = html;
   initialLoad = false;
 }
 
@@ -442,7 +505,7 @@ function renderCollectionGrid() {
   const fresh = projects.find(p => p.name === currentCollection.name);
   if (fresh) currentCollection = fresh;
 
-  const filtered = applyFilter(currentCollection.children || []);
+  const filtered = sortProjects(applyFilter(currentCollection.children || []));
   if (filtered.length === 0) { grid.innerHTML = '<div class="empty"><h2>No matching projects</h2></div>'; return; }
 
   grid.innerHTML = filtered.map((p, i) => {
