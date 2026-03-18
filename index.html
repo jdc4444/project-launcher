@@ -55,24 +55,18 @@
 
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; padding: 24px; }
   .section-label { grid-column: 1 / -1; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text2); padding: 8px 0 0; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; position: relative; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: transform 0.15s, box-shadow 0.15s; position: relative; }
   .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
-  .card-thumb { width: 100%; height: 200px; background: var(--surface2); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+  .card-thumb { width: 100%; height: 200px; background: var(--surface2); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; cursor: pointer; }
   .card-thumb img { width: 100%; height: 100%; object-fit: cover; }
   .card-thumb .placeholder { font-size: 48px; opacity: 0.3; }
-  .card-status { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--text2); box-shadow: 0 0 6px rgba(0,0,0,0.5); }
-  .card-status.running { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .card-status { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--text2); box-shadow: 0 0 6px rgba(0,0,0,0.5); transition: background 0.15s, box-shadow 0.15s, transform 0.15s; }
+  .card-status.running { background: var(--green); box-shadow: 0 0 8px var(--green); cursor: pointer; }
+  .card-status.running:hover { background: var(--red); box-shadow: 0 0 8px var(--red); transform: scale(1.4); }
   .card-status.starting { background: var(--orange); }
   .card-status.error { background: var(--red); }
-  .card-actions { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
-  .card:hover .card-actions { opacity: 1; }
-  .card-action-btn { width: 28px; height: 28px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px); transition: transform 0.1s; }
-  .card-action-btn:hover { transform: scale(1.1); }
-  .card-action-btn.stop { background: rgba(255,69,58,0.85); color: #fff; }
-  .card-detail-btn { margin-left: auto; width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; line-height: 1; }
-  .card:hover .card-detail-btn { opacity: 1; }
-  .card-detail-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .card-info { padding: 14px 16px; }
+  .card-info { padding: 14px 16px; cursor: pointer; }
+  .card-info:hover { background: var(--surface2); }
   .card-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
   .card-meta { font-size: 12px; color: var(--text2); display: flex; gap: 12px; align-items: center; }
 
@@ -106,8 +100,6 @@
   .btn-start:hover { filter: brightness(1.1); }
   .btn-stop { background: var(--red); color: #fff; }
   .btn-stop:hover { filter: brightness(1.1); }
-  .btn-screenshot { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
-  .btn-screenshot:hover { border-color: var(--accent); }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .detail-status { padding: 12px; background: var(--surface2); border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
   .detail-status .label { color: var(--text2); font-size: 11px; text-transform: uppercase; }
@@ -429,23 +421,16 @@ function renderCard(p, onclick) {
 
   const apiName = (p.fullName || p.name).replace(/'/g, "\\'");
   const isRunning = status === 'running';
-  const cardClick = p.launchable
-    ? `launchOrOpen('${apiName}', ${s.port || p.port || 'null'})`
-    : `showDetail('${apiName}')`;
 
   return `
-    <div class="card" onclick="${cardClick}">
-      <div class="card-thumb">
+    <div class="card">
+      <div class="card-thumb" onclick="${p.launchable ? `launchOrOpen('${apiName}', ${s.port || p.port || 'null'})` : `showDetail('${apiName}')`}">
         ${thumbUrl ? `<img src="${thumbUrl}" alt="${escHtml(p.name)}">` : `<span class="placeholder">${icons[p.type] || '○'}</span>`}
-        <div class="card-status ${status}"></div>
-        <div class="card-actions">
-          ${p.launchable && isRunning ? `<button class="card-action-btn stop" onclick="event.stopPropagation();stopFromCard('${apiName}')" title="Stop">■</button>` : ''}
-        </div>
+        <div class="card-status ${status}" ${isRunning ? `data-name="${apiName}" onclick="event.stopPropagation();stopFromCard('${apiName}')" title="Click to stop"` : ''}></div>
       </div>
-      <div class="card-info">
+      <div class="card-info" onclick="showDetail('${apiName}')">
         <div class="card-name">
           ${escHtml(p.name)} <span class="badge ${badgeType}">${badgeType}</span>
-          ${p.isGit ? `<button class="card-detail-btn" onclick="event.stopPropagation();showDetail('${apiName}')" title="Version history">+</button>` : ''}
         </div>
         <div class="card-meta">
           ${p.port ? `<span class="port-label">:${s.port || p.port}</span>` : ''}
@@ -513,16 +498,14 @@ function renderCollectionGrid() {
   }).join('');
 }
 
+let statusDebounce = null;
 function updateStatusDots() {
-  document.querySelectorAll('.card-status').forEach(dot => {
-    const card = dot.closest('.card');
-    const onclick = card?.getAttribute('onclick') || '';
-    const match = onclick.match(/showDetail\('(.+?)'\)/);
-    if (match) {
-      const s = statuses[match[1]];
-      if (s) dot.className = `card-status ${s.status || 'stopped'}`;
-    }
-  });
+  // Debounce re-renders to avoid flickering from rapid SSE events
+  clearTimeout(statusDebounce);
+  statusDebounce = setTimeout(() => {
+    if (currentCollection) renderCollectionGrid();
+    else if (!currentProject) renderGrid();
+  }, 200);
 }
 
 // --- Detail view ---
