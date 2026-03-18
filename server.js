@@ -73,19 +73,6 @@ app.post('/api/projects/refresh', (req, res) => {
   res.json({ ok: true });
 });
 
-// Handles both "name" and "parent/child" via wildcard
-app.get('/api/projects/:name(*)', (req, res) => {
-  const name = decodeURIComponent(req.params.name);
-  const project = findProject(name);
-  if (!project) return res.status(404).json({ error: 'Project not found' });
-
-  const screenshotName = project.fullName || project.name;
-  const status = getStatus(screenshotName);
-  const history = getVersionHistory(project.dir);
-  const screenshots = getScreenshots(screenshotName);
-  res.json({ ...project, ...status, history, screenshots });
-});
-
 app.post('/api/projects/:name(*)/start', async (req, res) => {
   const name = decodeURIComponent(req.params.name);
   const project = findProject(name);
@@ -184,6 +171,19 @@ app.post('/api/projects/:name(*)/set-image', express.json(), (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Catch-all project detail — MUST be after all specific /api/projects/:name/... routes
+app.get('/api/projects/:name(*)', (req, res) => {
+  const name = decodeURIComponent(req.params.name);
+  const project = findProject(name);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+
+  const screenshotName = project.fullName || project.name;
+  const status = getStatus(screenshotName);
+  const history = getVersionHistory(project.dir);
+  const screenshots = getScreenshots(screenshotName);
+  res.json({ ...project, ...status, history, screenshots });
 });
 
 app.get('/api/crawl', (req, res) => res.json(getCrawlStatus()));
