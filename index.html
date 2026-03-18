@@ -63,7 +63,9 @@
   .card-action-btn { width: 28px; height: 28px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px); transition: transform 0.1s; }
   .card-action-btn:hover { transform: scale(1.1); }
   .card-action-btn.stop { background: rgba(255,69,58,0.85); color: #fff; }
-  .card-action-btn.info { background: rgba(255,255,255,0.85); color: #333; font-weight: 700; }
+  .card-detail-btn { margin-left: auto; width: 22px; height: 22px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface2); color: var(--text2); font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; line-height: 1; }
+  .card:hover .card-detail-btn { opacity: 1; }
+  .card-detail-btn:hover { border-color: var(--accent); color: var(--accent); }
   .card-info { padding: 14px 16px; }
   .card-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
   .card-meta { font-size: 12px; color: var(--text2); display: flex; gap: 12px; align-items: center; }
@@ -386,11 +388,13 @@ function renderCard(p, onclick) {
         <div class="card-status ${status}"></div>
         <div class="card-actions">
           ${p.launchable && isRunning ? `<button class="card-action-btn stop" onclick="event.stopPropagation();stopFromCard('${apiName}')" title="Stop">■</button>` : ''}
-          <button class="card-action-btn info" onclick="event.stopPropagation();showDetail('${apiName}')" title="Version history">+</button>
         </div>
       </div>
       <div class="card-info">
-        <div class="card-name">${escHtml(p.name)} <span class="badge ${badgeType}">${badgeType}</span></div>
+        <div class="card-name">
+          ${escHtml(p.name)} <span class="badge ${badgeType}">${badgeType}</span>
+          <button class="card-detail-btn" onclick="event.stopPropagation();showDetail('${apiName}')" title="Version history">+</button>
+        </div>
         <div class="card-meta">
           ${p.port ? `<span class="port-label">:${s.port || p.port}</span>` : ''}
           ${p.currentCommit ? `<span>${p.currentCommit.label || p.currentCommit.sha}</span>` : ''}
