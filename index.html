@@ -469,7 +469,8 @@ function renderDetail() {
         <div class="detail-actions">
           ${!isRunning
             ? `<button class="btn btn-start" onclick="startProj(${esc(apiName)})" ${!p.launchable ? 'disabled' : ''}>▶ Start</button>`
-            : `<button class="btn btn-stop" onclick="stopProj(${esc(apiName)})">■ Stop</button>`}
+            : `<button class="btn btn-stop" onclick="stopProj(${esc(apiName)})">■ Stop</button>
+               <button class="btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)" onclick="window.open('http://localhost:${s.port || p.port}','_blank')">↗ Open</button>`}
         </div>
         <div class="status-grid">
           <div class="detail-status"><div class="label">Status</div><div class="value" style="color:${isRunning ? 'var(--green)' : 'var(--text2)'}">${status}</div></div>
@@ -505,7 +506,8 @@ async function startProj(name) {
   event.target.innerHTML = '<span class="spinner"></span> Starting...';
   const res = await fetch(`/api/projects/${encodeURIComponent(name)}/start`, { method: 'POST' });
   const data = await res.json();
-  if (!data.ok) alert(data.error || 'Failed to start');
+  if (!data.ok) { alert(data.error || 'Failed to start'); }
+  else if (data.port) { window.open(`http://localhost:${data.port}`, '_blank'); }
   const r = await fetch(`/api/projects/${encodeURIComponent(name)}`);
   currentProject = await r.json();
   renderDetail();
