@@ -470,7 +470,6 @@ function renderDetail() {
           ${!isRunning
             ? `<button class="btn btn-start" onclick="startProj(${esc(apiName)})" ${!p.launchable ? 'disabled' : ''}>▶ Start</button>`
             : `<button class="btn btn-stop" onclick="stopProj(${esc(apiName)})">■ Stop</button>`}
-          <button class="btn btn-screenshot" onclick="takeScreenshot(${esc(apiName)})" ${!isRunning ? 'disabled' : ''}>📷 Capture</button>
         </div>
         <div class="status-grid">
           <div class="detail-status"><div class="label">Status</div><div class="value" style="color:${isRunning ? 'var(--green)' : 'var(--text2)'}">${status}</div></div>
