@@ -13,7 +13,6 @@
     --text: #e8e8e8;
     --text2: #888;
     --accent: #4f9eff;
-    --accent2: #3a7fd5;
     --green: #34c759;
     --red: #ff453a;
     --orange: #ff9f0a;
@@ -22,510 +21,139 @@
     --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
   }
-
   @media (prefers-color-scheme: light) {
-    :root {
-      --bg: #f5f5f7;
-      --surface: #fff;
-      --surface2: #f0f0f0;
-      --border: #ddd;
-      --text: #1d1d1f;
-      --text2: #86868b;
-    }
+    :root { --bg: #f5f5f7; --surface: #fff; --surface2: #f0f0f0; --border: #ddd; --text: #1d1d1f; --text2: #86868b; }
   }
-
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
 
-  body {
-    font-family: var(--font);
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-  }
-
-  /* Top bar */
   .topbar {
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 12px 24px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    backdrop-filter: blur(20px);
+    position: sticky; top: 0; z-index: 100; background: var(--surface);
+    border-bottom: 1px solid var(--border); padding: 12px 24px;
+    display: flex; align-items: center; gap: 16px; backdrop-filter: blur(20px);
   }
+  .topbar h1 { font-size: 18px; font-weight: 600; white-space: nowrap; }
+  .breadcrumb { display: flex; align-items: center; gap: 4px; }
+  .breadcrumb a { color: var(--accent); text-decoration: none; font-size: 14px; cursor: pointer; }
+  .breadcrumb a:hover { text-decoration: underline; }
+  .breadcrumb .sep { color: var(--text2); font-size: 12px; }
+  .breadcrumb .current { color: var(--text); font-size: 18px; font-weight: 600; }
 
-  .topbar h1 {
-    font-size: 18px;
-    font-weight: 600;
-    white-space: nowrap;
-  }
-
-  .topbar .back-btn {
-    display: none;
-    background: none;
-    border: none;
-    color: var(--accent);
-    font-size: 16px;
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 6px;
-  }
-  .topbar .back-btn:hover { background: var(--surface2); }
-
-  .search {
-    flex: 1;
-    max-width: 400px;
-    padding: 8px 14px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--text);
-    font-size: 14px;
-    outline: none;
-  }
+  .search { flex: 1; max-width: 400px; padding: 8px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; outline: none; }
   .search:focus { border-color: var(--accent); }
-
-  .filters {
-    display: flex;
-    gap: 6px;
-  }
-  .filter-chip {
-    padding: 5px 12px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    background: transparent;
-    color: var(--text2);
-    font-size: 12px;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .filter-chip.active {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
-  }
+  .filters { display: flex; gap: 6px; }
+  .filter-chip { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .filter-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .filter-chip:hover:not(.active) { border-color: var(--text2); }
-
-  .refresh-btn {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text2);
-    padding: 6px 10px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-  }
+  .refresh-btn { background: none; border: 1px solid var(--border); color: var(--text2); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
   .refresh-btn:hover { border-color: var(--text); color: var(--text); }
 
-  /* Grid view */
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 16px;
-    padding: 24px;
-  }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    cursor: pointer;
-    transition: transform 0.15s, box-shadow 0.15s;
-    position: relative;
-  }
-  .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-  }
-
-  .card-thumb {
-    width: 100%;
-    height: 200px;
-    background: var(--surface2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    position: relative;
-  }
-  .card-thumb img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  .card-thumb .placeholder {
-    font-size: 48px;
-    opacity: 0.3;
-  }
-
-  .card-status {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--text2);
-    box-shadow: 0 0 6px rgba(0,0,0,0.5);
-  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; padding: 24px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; position: relative; }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .card-thumb { width: 100%; height: 200px; background: var(--surface2); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+  .card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .card-thumb .placeholder { font-size: 48px; opacity: 0.3; }
+  .card-status { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--text2); box-shadow: 0 0 6px rgba(0,0,0,0.5); }
   .card-status.running { background: var(--green); box-shadow: 0 0 8px var(--green); }
-  .card-status.starting { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
-  .card-status.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .card-status.starting { background: var(--orange); }
+  .card-status.error { background: var(--red); }
+  .card-info { padding: 14px 16px; }
+  .card-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .card-meta { font-size: 12px; color: var(--text2); display: flex; gap: 12px; align-items: center; }
 
-  .card-info {
-    padding: 14px 16px;
-  }
-  .card-name {
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 6px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .card-meta {
-    font-size: 12px;
-    color: var(--text2);
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-
-  .badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
   .badge.node { background: #2d5016; color: #6cc644; }
   .badge.html { background: #4a2800; color: #e34c26; }
   .badge.python { background: #1a3a5c; color: #3776ab; }
   .badge.swift { background: #4a1a00; color: #fa7343; }
   .badge.collection { background: #2a2a00; color: #c9b458; }
-  .badge.unknown { background: #2a2a2a; color: #888; }
+  .badge.unknown, .badge.electron { background: #2a2a2a; color: #888; }
+  .port-label { font-family: var(--mono); font-size: 11px; color: var(--accent); }
 
-  .port-label {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--accent);
-  }
+  /* Collection mini-grid */
+  .card-thumb .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; width: 100%; height: 100%; padding: 2px; }
+  .mini-grid img { width: 100%; height: 100%; object-fit: cover; border-radius: 2px; }
+  .mini-grid .mini-placeholder { background: var(--border); border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--text2); }
+  .child-count { position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.7); color: #fff; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
 
-  /* Detail view */
-  .detail {
-    display: none;
-    padding: 24px;
-    max-width: 1200px;
-    margin: 0 auto;
-  }
-
-  .detail-header {
-    display: flex;
-    align-items: flex-start;
-    gap: 24px;
-    margin-bottom: 24px;
-  }
-
-  .detail-screenshot {
-    flex: 1;
-    min-height: 300px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .detail-screenshot img {
-    width: 100%;
-    height: auto;
-  }
-  .detail-screenshot .no-screenshot {
-    color: var(--text2);
-    text-align: center;
-    padding: 40px;
-  }
-
-  .detail-controls {
-    width: 300px;
-    flex-shrink: 0;
-  }
-
-  .detail-title {
-    font-size: 24px;
-    font-weight: 700;
-    margin-bottom: 8px;
-  }
-
-  .detail-path {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text2);
-    margin-bottom: 16px;
-    word-break: break-all;
-  }
-
-  .detail-actions {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 16px;
-  }
-
-  .btn {
-    padding: 10px 20px;
-    border-radius: 8px;
-    border: none;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
-  }
-  .btn-start {
-    background: var(--green);
-    color: #fff;
-  }
+  /* Detail */
+  .detail { display: none; padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .detail-header { display: flex; align-items: flex-start; gap: 24px; margin-bottom: 24px; }
+  .detail-screenshot { flex: 1; min-height: 300px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .detail-screenshot img { width: 100%; height: auto; }
+  .detail-screenshot .no-screenshot { color: var(--text2); text-align: center; padding: 40px; }
+  .detail-controls { width: 300px; flex-shrink: 0; }
+  .detail-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .detail-path { font-family: var(--mono); font-size: 11px; color: var(--text2); margin-bottom: 16px; word-break: break-all; }
+  .detail-actions { display: flex; gap: 8px; margin-bottom: 16px; }
+  .btn { padding: 10px 20px; border-radius: 8px; border: none; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-start { background: var(--green); color: #fff; }
   .btn-start:hover { filter: brightness(1.1); }
-  .btn-stop {
-    background: var(--red);
-    color: #fff;
-  }
+  .btn-stop { background: var(--red); color: #fff; }
   .btn-stop:hover { filter: brightness(1.1); }
-  .btn-screenshot {
-    background: var(--surface2);
-    color: var(--text);
-    border: 1px solid var(--border);
-  }
+  .btn-screenshot { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
   .btn-screenshot:hover { border-color: var(--accent); }
-  .btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  .detail-status {
-    padding: 12px;
-    background: var(--surface2);
-    border-radius: 8px;
-    font-size: 13px;
-    margin-bottom: 16px;
-  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .detail-status { padding: 12px; background: var(--surface2); border-radius: 8px; font-size: 13px; margin-bottom: 16px; }
   .detail-status .label { color: var(--text2); font-size: 11px; text-transform: uppercase; }
   .detail-status .value { font-weight: 600; margin-top: 2px; }
-
-  .status-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  /* Console */
-  .console-panel {
-    margin-top: 16px;
-  }
-  .console-toggle {
-    background: none;
-    border: 1px solid var(--border);
-    color: var(--text2);
-    padding: 6px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 12px;
-    width: 100%;
-    text-align: left;
-  }
+  .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .console-panel { margin-top: 16px; }
+  .console-toggle { background: none; border: 1px solid var(--border); color: var(--text2); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; width: 100%; text-align: left; }
   .console-toggle:hover { color: var(--text); }
-  .console-output {
-    display: none;
-    margin-top: 8px;
-    background: #000;
-    border-radius: 8px;
-    padding: 12px;
-    max-height: 250px;
-    overflow-y: auto;
-    font-family: var(--mono);
-    font-size: 11px;
-    line-height: 1.5;
-  }
+  .console-output { display: none; margin-top: 8px; background: #000; border-radius: 8px; padding: 12px; max-height: 250px; overflow-y: auto; font-family: var(--mono); font-size: 11px; line-height: 1.5; }
   .console-output .stdout { color: #aaa; }
   .console-output .stderr { color: var(--orange); }
   .console-output .system { color: var(--accent); }
 
-  /* Version timeline */
-  .timeline-section {
-    margin-top: 32px;
-  }
-  .timeline-title {
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .timeline-title .count {
-    background: var(--surface2);
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 12px;
-    color: var(--text2);
-  }
-
-  .timeline-scroll {
-    display: flex;
-    gap: 12px;
-    overflow-x: auto;
-    padding-bottom: 12px;
-    scroll-snap-type: x proximity;
-  }
+  .timeline-section { margin-top: 32px; }
+  .timeline-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .timeline-title .count { background: var(--surface2); padding: 2px 8px; border-radius: 10px; font-size: 12px; color: var(--text2); }
+  .timeline-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 12px; scroll-snap-type: x proximity; }
   .timeline-scroll::-webkit-scrollbar { height: 6px; }
   .timeline-scroll::-webkit-scrollbar-track { background: var(--surface2); border-radius: 3px; }
   .timeline-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  .timeline-item {
-    flex-shrink: 0;
-    width: 200px;
-    scroll-snap-align: start;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-    cursor: pointer;
-    transition: border-color 0.15s;
-  }
+  .timeline-item { flex-shrink: 0; width: 200px; scroll-snap-align: start; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; cursor: pointer; transition: border-color 0.15s; }
   .timeline-item:hover { border-color: var(--accent); }
   .timeline-item.current { border-color: var(--green); border-width: 2px; }
   .timeline-item.tag { border-color: var(--yellow); }
-
-  .timeline-thumb {
-    width: 100%;
-    height: 120px;
-    background: var(--surface2);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
+  .timeline-thumb { width: 100%; height: 120px; background: var(--surface2); display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .timeline-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .timeline-thumb .no-capture {
-    font-size: 11px;
-    color: var(--text2);
-    text-align: center;
-    padding: 8px;
-  }
+  .timeline-thumb .no-capture { font-size: 11px; color: var(--text2); text-align: center; padding: 8px; }
+  .timeline-info { padding: 10px 12px; }
+  .timeline-label { font-size: 13px; font-weight: 600; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .timeline-date { font-size: 11px; color: var(--text2); }
+  .timeline-msg { font-size: 11px; color: var(--text2); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-  .timeline-info {
-    padding: 10px 12px;
-  }
-  .timeline-label {
-    font-size: 13px;
-    font-weight: 600;
-    margin-bottom: 2px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .timeline-date {
-    font-size: 11px;
-    color: var(--text2);
-  }
-  .timeline-msg {
-    font-size: 11px;
-    color: var(--text2);
-    margin-top: 4px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* Screenshot modal */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.85);
-    z-index: 200;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-  }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; cursor: pointer; }
   .modal-overlay.active { display: flex; }
-  .modal-overlay img {
-    max-width: 90vw;
-    max-height: 90vh;
-    border-radius: 8px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-  }
+  .modal-overlay img { max-width: 90vw; max-height: 90vh; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
 
-  /* Loading spinner */
-  .spinner {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.6s linear infinite;
-  }
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* Empty state */
-  .empty {
-    text-align: center;
-    padding: 80px 20px;
-    color: var(--text2);
-  }
+  .empty { text-align: center; padding: 80px 20px; color: var(--text2); }
   .empty h2 { font-size: 20px; margin-bottom: 8px; color: var(--text); }
 
-  /* Crawl progress bar */
-  .crawl-bar {
-    display: none;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 8px 24px;
-    font-size: 12px;
-    color: var(--text2);
-    align-items: center;
-    gap: 12px;
-  }
+  .crawl-bar { display: none; background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 24px; font-size: 12px; color: var(--text2); align-items: center; gap: 12px; }
   .crawl-bar.active { display: flex; }
-  .crawl-progress {
-    flex: 1;
-    max-width: 300px;
-    height: 4px;
-    background: var(--surface2);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-  .crawl-progress-fill {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 2px;
-    transition: width 0.3s;
-  }
-  .crawl-active {
-    color: var(--accent);
-    font-weight: 500;
-  }
+  .crawl-progress { flex: 1; max-width: 300px; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .crawl-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
+  .crawl-active { color: var(--accent); font-weight: 500; }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <button class="back-btn" id="backBtn" onclick="showGrid()">← Back</button>
-  <h1 id="pageTitle">Project Launcher</h1>
+  <div class="breadcrumb" id="breadcrumb">
+    <span class="current">Project Launcher</span>
+  </div>
   <input class="search" id="search" type="text" placeholder="Search projects..." oninput="filterProjects()">
   <div class="filters" id="filters">
     <button class="filter-chip active" data-filter="all" onclick="setFilter('all', this)">All</button>
     <button class="filter-chip" data-filter="node" onclick="setFilter('node', this)">Node</button>
     <button class="filter-chip" data-filter="html" onclick="setFilter('html', this)">HTML</button>
     <button class="filter-chip" data-filter="python" onclick="setFilter('python', this)">Python</button>
-    <button class="filter-chip" data-filter="swift" onclick="setFilter('swift', this)">Swift</button>
   </div>
   <button class="refresh-btn" onclick="loadProjects(true)">↻</button>
 </div>
@@ -538,412 +166,401 @@
 </div>
 
 <div class="grid" id="grid"></div>
-
 <div class="detail" id="detail"></div>
-
-<div class="modal-overlay" id="modal" onclick="closeModal()">
-  <img id="modalImg" src="">
-</div>
+<div class="modal-overlay" id="modal" onclick="closeModal()"><img id="modalImg" src=""></div>
 
 <script>
 let projects = [];
 let currentFilter = 'all';
 let currentProject = null;
+let currentCollection = null; // When viewing inside a collection
 let statuses = {};
+let navStack = []; // ['grid'] or ['grid', 'World Code'] or ['grid', 'World Code', 'festival globe']
 
-// --- SSE for real-time updates ---
+// --- SSE ---
 const evtSource = new EventSource('/api/status');
 evtSource.onmessage = (e) => {
-  try {
-    const data = JSON.parse(e.data);
-    statuses = { ...statuses, ...data };
-    updateStatusDots();
-    if (currentProject) updateDetailStatus();
-  } catch {}
+  try { statuses = { ...statuses, ...JSON.parse(e.data) }; updateStatusDots(); } catch {}
 };
 evtSource.addEventListener('status', (e) => {
   try {
-    const data = JSON.parse(e.data);
-    statuses[data.name] = data;
+    const d = JSON.parse(e.data);
+    statuses[d.name] = d;
     updateStatusDots();
-    if (currentProject && currentProject.name === data.name) {
-      currentProject.status = data.status;
-      currentProject.port = data.port || currentProject.port;
-      updateDetailStatus();
+    if (currentProject && (currentProject.name === d.name || currentProject.fullName === d.name)) {
+      currentProject.status = d.status;
+      currentProject.port = d.port || currentProject.port;
+      renderDetail();
     }
   } catch {}
 });
 evtSource.addEventListener('screenshot', (e) => {
   try {
-    const data = JSON.parse(e.data);
-    if (currentProject && currentProject.name === data.name) {
-      fetch(`/api/projects/${encodeURIComponent(data.name)}`)
-        .then(r => r.json())
-        .then(p => { currentProject = p; renderDetail(); });
+    const d = JSON.parse(e.data);
+    if (currentProject && (currentProject.name === d.name || currentProject.fullName === d.name)) {
+      const apiName = currentProject.fullName || currentProject.name;
+      fetch(`/api/projects/${encodeURIComponent(apiName)}`).then(r => r.json()).then(p => { currentProject = p; renderDetail(); });
     }
-    // Refresh grid to show new thumbnail
     loadProjects();
   } catch {}
 });
 evtSource.addEventListener('crawl', (e) => {
   try {
-    const data = JSON.parse(e.data);
+    const d = JSON.parse(e.data);
     const bar = document.getElementById('crawlBar');
-    if (data.running) {
+    if (d.running) {
       bar.classList.add('active');
-      const pct = data.total > 0 ? Math.round(((data.done + data.failed) / data.total) * 100) : 0;
+      const pct = d.total > 0 ? Math.round(((d.done + d.failed) / d.total) * 100) : 0;
       document.getElementById('crawlFill').style.width = pct + '%';
-      document.getElementById('crawlText').textContent =
-        `Capturing screenshots... ${data.done + data.failed}/${data.total}`;
-      document.getElementById('crawlActive').textContent =
-        data.active.length > 0 ? data.active.join(', ') : '';
+      document.getElementById('crawlText').textContent = `Capturing screenshots... ${d.done + d.failed}/${d.total}`;
+      document.getElementById('crawlActive').textContent = d.active.length > 0 ? d.active.join(', ') : '';
     } else {
       bar.classList.remove('active');
     }
   } catch {}
 });
 
-// --- Load projects ---
+// --- Data ---
 async function loadProjects(force = false) {
   if (force) await fetch('/api/projects/refresh', { method: 'POST' });
   const res = await fetch('/api/projects');
   projects = await res.json();
-  renderGrid();
+  if (currentCollection) {
+    renderCollectionGrid();
+  } else if (!currentProject) {
+    renderGrid();
+  }
 }
 
-// --- Filter ---
+// --- Navigation ---
+function navigate(view, data) {
+  const grid = document.getElementById('grid');
+  const detail = document.getElementById('detail');
+  const search = document.getElementById('search');
+  const filters = document.getElementById('filters');
+
+  if (view === 'grid') {
+    navStack = ['grid'];
+    currentProject = null;
+    currentCollection = null;
+    grid.style.display = 'grid';
+    detail.style.display = 'none';
+    search.style.display = 'block';
+    filters.style.display = 'flex';
+    renderBreadcrumb();
+    renderGrid();
+  } else if (view === 'collection') {
+    navStack = ['grid', data.name];
+    currentProject = null;
+    currentCollection = data;
+    grid.style.display = 'grid';
+    detail.style.display = 'none';
+    search.style.display = 'block';
+    filters.style.display = 'flex';
+    renderBreadcrumb();
+    renderCollectionGrid();
+  } else if (view === 'detail') {
+    navStack.push(data.name || data.fullName);
+    currentProject = data;
+    grid.style.display = 'none';
+    detail.style.display = 'block';
+    search.style.display = 'none';
+    filters.style.display = 'none';
+    renderBreadcrumb();
+    renderDetail();
+  }
+}
+
+function goBack() {
+  if (navStack.length <= 1) return;
+  navStack.pop();
+  if (navStack.length === 1) {
+    navigate('grid');
+  } else {
+    // Back to collection
+    const collName = navStack[1];
+    const coll = projects.find(p => p.name === collName);
+    if (coll) {
+      navStack = ['grid'];
+      navigate('collection', coll);
+    } else {
+      navigate('grid');
+    }
+  }
+}
+
+function renderBreadcrumb() {
+  const bc = document.getElementById('breadcrumb');
+  if (navStack.length <= 1) {
+    bc.innerHTML = '<span class="current">Project Launcher</span>';
+  } else {
+    let html = '<a onclick="navigate(\'grid\')">Project Launcher</a>';
+    for (let i = 1; i < navStack.length; i++) {
+      html += '<span class="sep">/</span>';
+      if (i === navStack.length - 1) {
+        html += `<span class="current">${escHtml(navStack[i])}</span>`;
+      } else {
+        const collName = navStack[i];
+        html += `<a onclick="goBack()">${escHtml(collName)}</a>`;
+      }
+    }
+    bc.innerHTML = html;
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('modal').classList.contains('active')) closeModal();
+    else goBack();
+  }
+});
+
+// --- Filters ---
 function setFilter(filter, btn) {
   currentFilter = filter;
   document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
-  renderGrid();
+  if (currentCollection) renderCollectionGrid();
+  else renderGrid();
 }
-
 function filterProjects() {
-  renderGrid();
+  if (currentCollection) renderCollectionGrid();
+  else renderGrid();
 }
-
-function getFilteredProjects() {
-  let list = projects;
-  if (currentFilter !== 'all') {
-    list = list.filter(p => p.type === currentFilter);
-  }
+function applyFilter(list) {
+  if (currentFilter !== 'all') list = list.filter(p => p.type === currentFilter || (currentFilter === 'node' && p.framework === 'vite'));
   const q = document.getElementById('search').value.toLowerCase();
-  if (q) {
-    list = list.filter(p => p.name.toLowerCase().includes(q) || (p.framework || '').includes(q));
-  }
+  if (q) list = list.filter(p => p.name.toLowerCase().includes(q) || (p.framework || '').includes(q));
   return list;
 }
 
-// --- Render grid ---
-function renderGrid() {
-  const grid = document.getElementById('grid');
-  const filtered = getFilteredProjects();
+// --- Render cards ---
+function renderCard(p, onclick) {
+  const s = statuses[p.fullName || p.name] || p;
+  const status = s.status || 'stopped';
+  const screenshotName = p.fullName || p.name;
+  const thumbUrl = p.latestScreenshot ? `/screenshots/${encodeURIComponent(screenshotName)}/${p.latestScreenshot.thumb}` : '';
+  const icons = { node: '⬡', html: '◇', python: '◆', swift: '◈', collection: '▣', electron: '◈', unknown: '○' };
+  const badgeType = p.framework === 'electron-html' ? 'electron' : p.type;
 
-  if (filtered.length === 0) {
-    grid.innerHTML = '<div class="empty"><h2>No projects found</h2><p>Try a different filter or search term</p></div>';
-    return;
-  }
-
-  grid.innerHTML = filtered.map(p => {
-    const s = statuses[p.name] || p;
-    const status = s.status || 'stopped';
-    const thumbUrl = p.latestScreenshot ? `/screenshots/${encodeURIComponent(p.name)}/${p.latestScreenshot.thumb}` : '';
-    const typeIcons = { node: '⬡', html: '◇', python: '◆', swift: '◈', collection: '▣', unknown: '○' };
+  if (p.type === 'collection') {
+    // Collection card with mini-grid of child thumbnails
+    const children = p.children || [];
+    const thumbChildren = children.filter(c => c.latestScreenshot).slice(0, 4);
+    const miniHtml = thumbChildren.length > 0
+      ? `<div class="mini-grid">${thumbChildren.map(c => {
+          const cName = c.fullName || c.name;
+          return `<img src="/screenshots/${encodeURIComponent(cName)}/${c.latestScreenshot.thumb}">`;
+        }).join('')}${Array(Math.max(0, 4 - thumbChildren.length)).fill('<div class="mini-placeholder"></div>').join('')}</div>`
+      : `<span class="placeholder">▣</span>`;
 
     return `
-      <div class="card" onclick="showDetail('${p.name.replace(/'/g, "\\'")}')">
+      <div class="card" onclick="${onclick}">
         <div class="card-thumb">
-          ${thumbUrl ? `<img src="${thumbUrl}" alt="${p.name}">` : `<span class="placeholder">${typeIcons[p.type] || '○'}</span>`}
-          <div class="card-status ${status}"></div>
+          ${miniHtml}
+          <span class="child-count">${p.launchableChildren || 0} projects</span>
         </div>
         <div class="card-info">
-          <div class="card-name">
-            ${p.name}
-            <span class="badge ${p.type}">${p.type}</span>
-          </div>
-          <div class="card-meta">
-            ${p.port ? `<span class="port-label">:${s.port || p.port}</span>` : ''}
-            ${p.currentCommit ? `<span>${p.currentCommit.label || p.currentCommit.sha}</span>` : ''}
-            ${p.isGit ? '<span>git</span>' : ''}
-          </div>
+          <div class="card-name">${escHtml(p.name)} <span class="badge collection">folder</span></div>
+          <div class="card-meta">${p.childCount} items${p.isGit ? ' · git' : ''}</div>
+        </div>
+      </div>`;
+  }
+
+  return `
+    <div class="card" onclick="${onclick}">
+      <div class="card-thumb">
+        ${thumbUrl ? `<img src="${thumbUrl}" alt="${escHtml(p.name)}">` : `<span class="placeholder">${icons[p.type] || '○'}</span>`}
+        <div class="card-status ${status}"></div>
+      </div>
+      <div class="card-info">
+        <div class="card-name">${escHtml(p.name)} <span class="badge ${badgeType}">${badgeType}</span></div>
+        <div class="card-meta">
+          ${p.port ? `<span class="port-label">:${s.port || p.port}</span>` : ''}
+          ${p.currentCommit ? `<span>${p.currentCommit.label || p.currentCommit.sha}</span>` : ''}
+          ${p.isGit ? '<span>git</span>' : ''}
         </div>
       </div>
-    `;
+    </div>`;
+}
+
+// --- Main grid ---
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  const filtered = applyFilter(projects);
+  if (filtered.length === 0) { grid.innerHTML = '<div class="empty"><h2>No projects found</h2></div>'; return; }
+
+  grid.innerHTML = filtered.map(p => {
+    if (p.type === 'collection') {
+      return renderCard(p, `navigate('collection', projects.find(x => x.name === '${p.name.replace(/'/g, "\\'")}'))`);
+    }
+    const apiName = (p.fullName || p.name).replace(/'/g, "\\'");
+    return renderCard(p, `showDetail('${apiName}')`);
+  }).join('');
+}
+
+// --- Collection sub-grid ---
+function renderCollectionGrid() {
+  const grid = document.getElementById('grid');
+  if (!currentCollection?.children) { grid.innerHTML = '<div class="empty"><h2>No sub-projects</h2></div>'; return; }
+
+  // Re-fetch enriched children from the projects array
+  const fresh = projects.find(p => p.name === currentCollection.name);
+  if (fresh) currentCollection = fresh;
+
+  const filtered = applyFilter(currentCollection.children || []);
+  if (filtered.length === 0) { grid.innerHTML = '<div class="empty"><h2>No matching projects</h2></div>'; return; }
+
+  grid.innerHTML = filtered.map(p => {
+    const apiName = (p.fullName || `${currentCollection.name}/${p.name}`).replace(/'/g, "\\'");
+    return renderCard(p, `showDetail('${apiName}')`);
   }).join('');
 }
 
 function updateStatusDots() {
-  document.querySelectorAll('.card').forEach(card => {
-    const name = card.getAttribute('onclick')?.match(/showDetail\('(.+?)'\)/)?.[1];
-    if (!name) return;
-    const s = statuses[name];
-    if (s) {
-      const dot = card.querySelector('.card-status');
-      if (dot) dot.className = `card-status ${s.status || 'stopped'}`;
+  document.querySelectorAll('.card-status').forEach(dot => {
+    const card = dot.closest('.card');
+    const onclick = card?.getAttribute('onclick') || '';
+    const match = onclick.match(/showDetail\('(.+?)'\)/);
+    if (match) {
+      const s = statuses[match[1]];
+      if (s) dot.className = `card-status ${s.status || 'stopped'}`;
     }
   });
 }
 
 // --- Detail view ---
 async function showDetail(name) {
-  document.getElementById('grid').style.display = 'none';
-  document.getElementById('detail').style.display = 'block';
-  document.getElementById('backBtn').style.display = 'inline-block';
-  document.getElementById('search').style.display = 'none';
-  document.getElementById('filters').style.display = 'none';
-  document.getElementById('pageTitle').textContent = name;
-
   const res = await fetch(`/api/projects/${encodeURIComponent(name)}`);
-  currentProject = await res.json();
-  renderDetail();
-}
-
-function showGrid() {
-  document.getElementById('grid').style.display = 'grid';
-  document.getElementById('detail').style.display = 'none';
-  document.getElementById('backBtn').style.display = 'none';
-  document.getElementById('search').style.display = 'block';
-  document.getElementById('filters').style.display = 'flex';
-  document.getElementById('pageTitle').textContent = 'Project Launcher';
-  currentProject = null;
-  loadProjects();
+  const p = await res.json();
+  navigate('detail', p);
 }
 
 function renderDetail() {
   const p = currentProject;
   if (!p) return;
-  const s = statuses[p.name] || p;
+  const apiName = p.fullName || p.name;
+  const s = statuses[apiName] || p;
   const status = s.status || 'stopped';
   const isRunning = status === 'running';
-  const latestScreenshot = p.screenshots?.[0];
-  const screenshotUrl = latestScreenshot ? `/screenshots/${encodeURIComponent(p.name)}/${latestScreenshot.full}` : '';
+  const latest = p.screenshots?.[0];
+  const ssUrl = latest ? `/screenshots/${encodeURIComponent(apiName)}/${latest.full}` : '';
 
-  // Build version timeline
   const tags = p.history?.tags || [];
   const commits = p.history?.commits || [];
-  const screenshotMap = {};
-  (p.screenshots || []).forEach(s => { screenshotMap[s.sha] = s; });
+  const ssMap = {};
+  (p.screenshots || []).forEach(s => { ssMap[s.sha] = s; });
 
-  // Merge tags and commits into unified timeline
   const timeline = [];
   const tagShas = new Set(tags.map(t => t.sha));
+  for (const t of tags) timeline.push({ label: t.name, sha: t.sha, date: t.date, message: '', isTag: true, isCurrent: p.history?.current?.sha === t.sha, screenshot: ssMap[t.sha] });
+  for (const c of commits) { if (tagShas.has(c.sha)) continue; timeline.push({ label: c.sha, sha: c.sha, date: c.date, message: c.message, isTag: false, isCurrent: p.history?.current?.sha === c.sha, screenshot: ssMap[c.sha] }); }
 
-  for (const tag of tags) {
-    const sc = screenshotMap[tag.sha];
-    timeline.push({
-      label: tag.name,
-      sha: tag.sha,
-      date: tag.date,
-      message: '',
-      isTag: true,
-      isCurrent: p.history?.current?.sha === tag.sha,
-      screenshot: sc,
-    });
-  }
-
-  for (const c of commits) {
-    if (tagShas.has(c.sha)) continue; // skip if already shown as tag
-    const sc = screenshotMap[c.sha];
-    timeline.push({
-      label: c.sha,
-      sha: c.sha,
-      date: c.date,
-      message: c.message,
-      isTag: false,
-      isCurrent: p.history?.current?.sha === c.sha,
-      screenshot: sc,
-    });
-  }
+  const esc = s => `'${(s||'').replace(/'/g, "\\'")}'`;
 
   document.getElementById('detail').innerHTML = `
     <div class="detail-header">
       <div class="detail-screenshot">
-        ${screenshotUrl
-          ? `<img src="${screenshotUrl}" onclick="openModal('${screenshotUrl}')" style="cursor:pointer" title="Click to enlarge">`
-          : `<div class="no-screenshot">No screenshot captured yet.<br>Start the project and click "Capture".</div>`
-        }
+        ${ssUrl ? `<img src="${ssUrl}" onclick="openModal('${ssUrl}')" style="cursor:pointer">` : '<div class="no-screenshot">No screenshot yet</div>'}
       </div>
       <div class="detail-controls">
-        <div class="detail-title">${p.name}</div>
-        <div class="detail-path">${p.dir}</div>
-
+        <div class="detail-title">${escHtml(p.name)}</div>
+        <div class="detail-path">${escHtml(p.dir)}</div>
         <div class="detail-actions">
           ${!isRunning
-            ? `<button class="btn btn-start" onclick="startProj('${p.name.replace(/'/g, "\\'")}')" ${!p.launchable ? 'disabled title="Not launchable"' : ''}>▶ Start</button>`
-            : `<button class="btn btn-stop" onclick="stopProj('${p.name.replace(/'/g, "\\'")}')">■ Stop</button>`
-          }
-          <button class="btn btn-screenshot" onclick="takeScreenshot('${p.name.replace(/'/g, "\\'")}')" ${!isRunning ? 'disabled' : ''}>📷 Capture</button>
+            ? `<button class="btn btn-start" onclick="startProj(${esc(apiName)})" ${!p.launchable ? 'disabled' : ''}>▶ Start</button>`
+            : `<button class="btn btn-stop" onclick="stopProj(${esc(apiName)})">■ Stop</button>`}
+          <button class="btn btn-screenshot" onclick="takeScreenshot(${esc(apiName)})" ${!isRunning ? 'disabled' : ''}>📷 Capture</button>
         </div>
-
         <div class="status-grid">
-          <div class="detail-status">
-            <div class="label">Status</div>
-            <div class="value" id="statusValue" style="color: ${isRunning ? 'var(--green)' : status === 'error' ? 'var(--red)' : 'var(--text2)'}">
-              ${status}
-            </div>
-          </div>
-          <div class="detail-status">
-            <div class="label">Port</div>
-            <div class="value">${s.port || p.port || '—'}</div>
-          </div>
-          <div class="detail-status">
-            <div class="label">Type</div>
-            <div class="value">${p.framework || p.type}</div>
-          </div>
-          <div class="detail-status">
-            <div class="label">Commit</div>
-            <div class="value">${p.history?.current?.label || '—'}</div>
-          </div>
+          <div class="detail-status"><div class="label">Status</div><div class="value" style="color:${isRunning ? 'var(--green)' : 'var(--text2)'}">${status}</div></div>
+          <div class="detail-status"><div class="label">Port</div><div class="value">${s.port || p.port || '—'}</div></div>
+          <div class="detail-status"><div class="label">Type</div><div class="value">${p.framework || p.type}</div></div>
+          <div class="detail-status"><div class="label">Commit</div><div class="value">${p.history?.current?.label || '—'}</div></div>
         </div>
-
         <div class="console-panel">
           <button class="console-toggle" onclick="toggleConsole()">Console Output ▾</button>
           <div class="console-output" id="consoleOutput"></div>
         </div>
       </div>
     </div>
-
     ${timeline.length > 0 ? `
     <div class="timeline-section">
-      <div class="timeline-title">
-        Version History
-        <span class="count">${tags.length} tags · ${commits.length} commits</span>
-      </div>
+      <div class="timeline-title">Version History <span class="count">${tags.length} tags · ${commits.length} commits</span></div>
       <div class="timeline-scroll">
         ${timeline.map(v => {
-          const thumbUrl = v.screenshot ? `/screenshots/${encodeURIComponent(p.name)}/${v.screenshot.thumb}` : '';
-          return `
-            <div class="timeline-item ${v.isCurrent ? 'current' : ''} ${v.isTag ? 'tag' : ''}"
-                 ${v.screenshot ? `onclick="openModal('/screenshots/${encodeURIComponent(p.name)}/${v.screenshot.full}')"` : ''}
-                 title="${v.message || v.label}">
-              <div class="timeline-thumb">
-                ${thumbUrl
-                  ? `<img src="${thumbUrl}">`
-                  : `<div class="no-capture">No screenshot</div>`
-                }
-              </div>
-              <div class="timeline-info">
-                <div class="timeline-label">${v.isTag ? '🏷 ' : ''}${v.label}</div>
-                <div class="timeline-date">${v.date ? new Date(v.date).toLocaleDateString() : ''}</div>
-                ${v.message ? `<div class="timeline-msg">${escHtml(v.message)}</div>` : ''}
-              </div>
-            </div>
-          `;
+          const tUrl = v.screenshot ? `/screenshots/${encodeURIComponent(apiName)}/${v.screenshot.thumb}` : '';
+          return `<div class="timeline-item ${v.isCurrent ? 'current' : ''} ${v.isTag ? 'tag' : ''}" ${v.screenshot ? `onclick="openModal('/screenshots/${encodeURIComponent(apiName)}/${v.screenshot.full}')"` : ''} title="${escHtml(v.message || v.label)}">
+            <div class="timeline-thumb">${tUrl ? `<img src="${tUrl}">` : '<div class="no-capture">No screenshot</div>'}</div>
+            <div class="timeline-info"><div class="timeline-label">${v.isTag ? '🏷 ' : ''}${escHtml(v.label)}</div><div class="timeline-date">${v.date ? new Date(v.date).toLocaleDateString() : ''}</div>${v.message ? `<div class="timeline-msg">${escHtml(v.message)}</div>` : ''}</div>
+          </div>`;
         }).join('')}
       </div>
-    </div>
-    ` : ''}
-  `;
-
+    </div>` : ''}`;
   if (isRunning) loadLogs();
-}
-
-function updateDetailStatus() {
-  if (!currentProject) return;
-  renderDetail(); // Simple re-render
 }
 
 // --- Actions ---
 async function startProj(name) {
-  const btn = event.target;
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Starting...';
+  event.target.disabled = true;
+  event.target.innerHTML = '<span class="spinner"></span> Starting...';
   const res = await fetch(`/api/projects/${encodeURIComponent(name)}/start`, { method: 'POST' });
   const data = await res.json();
-  if (!data.ok) {
-    alert(data.error || 'Failed to start');
-  }
-  // Refresh detail
+  if (!data.ok) alert(data.error || 'Failed to start');
   const r = await fetch(`/api/projects/${encodeURIComponent(name)}`);
   currentProject = await r.json();
   renderDetail();
 }
-
 async function stopProj(name) {
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = 'Stopping...';
+  event.target.disabled = true;
+  event.target.textContent = 'Stopping...';
   await fetch(`/api/projects/${encodeURIComponent(name)}/stop`, { method: 'POST' });
-  // Refresh detail
   const r = await fetch(`/api/projects/${encodeURIComponent(name)}`);
   currentProject = await r.json();
   renderDetail();
 }
-
 async function takeScreenshot(name) {
-  const btn = event.target;
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>';
+  event.target.disabled = true;
+  event.target.innerHTML = '<span class="spinner"></span>';
   try {
     const res = await fetch(`/api/projects/${encodeURIComponent(name)}/screenshot`, { method: 'POST' });
     const data = await res.json();
-    if (!data.ok) {
-      alert(data.error || 'Screenshot failed');
-    }
-  } catch (err) {
-    alert('Screenshot failed: ' + err.message);
-  }
-  // Refresh detail
+    if (!data.ok) alert(data.error || 'Screenshot failed');
+  } catch (err) { alert('Screenshot failed: ' + err.message); }
   const r = await fetch(`/api/projects/${encodeURIComponent(name)}`);
   currentProject = await r.json();
   renderDetail();
 }
 
 // --- Console ---
-let consoleVisible = false;
-let logInterval = null;
-
+let consoleVisible = false, logInterval = null;
 function toggleConsole() {
   consoleVisible = !consoleVisible;
-  const el = document.getElementById('consoleOutput');
-  el.style.display = consoleVisible ? 'block' : 'none';
+  document.getElementById('consoleOutput').style.display = consoleVisible ? 'block' : 'none';
   if (consoleVisible) loadLogs();
 }
-
 async function loadLogs() {
   if (!currentProject) return;
-  const res = await fetch(`/api/projects/${encodeURIComponent(currentProject.name)}/logs?count=50`);
+  const name = currentProject.fullName || currentProject.name;
+  const res = await fetch(`/api/projects/${encodeURIComponent(name)}/logs?count=50`);
   const logs = await res.json();
   const el = document.getElementById('consoleOutput');
   if (!el) return;
   el.innerHTML = logs.map(l => `<div class="${l.stream}">${escHtml(l.line)}</div>`).join('');
   el.scrollTop = el.scrollHeight;
-
-  // Auto-refresh logs
   clearInterval(logInterval);
-  if (consoleVisible) {
-    logInterval = setInterval(loadLogs, 3000);
-  }
+  if (consoleVisible) logInterval = setInterval(loadLogs, 3000);
 }
 
 // --- Modal ---
-function openModal(src) {
-  event.stopPropagation();
-  document.getElementById('modalImg').src = src;
-  document.getElementById('modal').classList.add('active');
-}
-
-function closeModal() {
-  document.getElementById('modal').classList.remove('active');
-}
-
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    if (document.getElementById('modal').classList.contains('active')) {
-      closeModal();
-    } else if (currentProject) {
-      showGrid();
-    }
-  }
-});
+function openModal(src) { event.stopPropagation(); document.getElementById('modalImg').src = src; document.getElementById('modal').classList.add('active'); }
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
 
 // --- Utils ---
-function escHtml(s) {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // --- Init ---
+navigate('grid');
 loadProjects();
 </script>
 </body>

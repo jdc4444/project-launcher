@@ -11,14 +11,9 @@ const PORT = 4900;
 
 app.use(express.json());
 
-// Serve index.html
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-// --- API Routes ---
-
-// List all projects
+// --- Project cache ---
 let cachedProjects = null;
 let cacheTime = 0;
 const CACHE_TTL = 10000;
@@ -32,13 +27,42 @@ function getProjects() {
   return cachedProjects;
 }
 
+// Find a project by name (supports "parent/child" for sub-projects)
+function findProject(name) {
+  const projects = getProjects();
+  // Direct match
+  let p = projects.find(p => p.name === name);
+  if (p) return p;
+  // Sub-project match: "World Code/festival globe"
+  for (const proj of projects) {
+    if (proj.children) {
+      const child = proj.children.find(c => c.fullName === name || c.name === name);
+      if (child) return child;
+    }
+  }
+  return null;
+}
+
+// Enrich a project with runtime status and screenshot info
+function enrichProject(p) {
+  const screenshotName = p.fullName || p.name;
+  const status = getStatus(screenshotName);
+  const screenshot = getLatestScreenshot(screenshotName);
+  const commit = getCurrentCommit(p.dir);
+  return { ...p, ...status, currentCommit: commit, latestScreenshot: screenshot };
+}
+
+// --- API ---
+
 app.get('/api/projects', (req, res) => {
   const projects = getProjects();
   const enriched = projects.map(p => {
-    const status = getStatus(p.name);
-    const screenshot = getLatestScreenshot(p.name);
-    const commit = getCurrentCommit(p.dir);
-    return { ...p, ...status, currentCommit: commit, latestScreenshot: screenshot };
+    const ep = enrichProject(p);
+    // Enrich children too
+    if (ep.children) {
+      ep.children = ep.children.map(c => enrichProject(c));
+    }
+    return ep;
   });
   res.json(enriched);
 });
@@ -49,95 +73,83 @@ app.post('/api/projects/refresh', (req, res) => {
   res.json({ ok: true });
 });
 
-// Single project detail
-app.get('/api/projects/:name', (req, res) => {
+// Handles both "name" and "parent/child" via wildcard
+app.get('/api/projects/:name(*)', (req, res) => {
   const name = decodeURIComponent(req.params.name);
-  const project = getProjects().find(p => p.name === name);
+  const project = findProject(name);
   if (!project) return res.status(404).json({ error: 'Project not found' });
 
-  const status = getStatus(name);
+  const screenshotName = project.fullName || project.name;
+  const status = getStatus(screenshotName);
   const history = getVersionHistory(project.dir);
-  const screenshots = getScreenshots(name);
+  const screenshots = getScreenshots(screenshotName);
   res.json({ ...project, ...status, history, screenshots });
 });
 
-// Start project
-app.post('/api/projects/:name/start', async (req, res) => {
+app.post('/api/projects/:name(*)/start', async (req, res) => {
   const name = decodeURIComponent(req.params.name);
-  const project = getProjects().find(p => p.name === name);
+  const project = findProject(name);
   if (!project) return res.status(404).json({ error: 'Project not found' });
   if (!project.launchable) return res.status(400).json({ error: 'Not launchable' });
 
   const result = await startProject(project);
   res.json(result);
 
-  // Auto-capture after manual start
   if (result.ok && result.port) {
+    const screenshotName = project.fullName || project.name;
     const commit = getCurrentCommit(project.dir);
     const sha = commit?.sha || 'current';
-    captureScreenshot(name, result.port, sha)
-      .then(() => broadcast('screenshot', { name, sha }))
-      .catch(err => console.log(`Auto-screenshot for ${name} failed: ${err.message}`));
+    captureScreenshot(screenshotName, result.port, sha)
+      .then(() => broadcast('screenshot', { name: screenshotName, sha }))
+      .catch(err => console.log(`Auto-screenshot for ${screenshotName} failed: ${err.message}`));
   }
 });
 
-// Stop project
-app.post('/api/projects/:name/stop', async (req, res) => {
+app.post('/api/projects/:name(*)/stop', async (req, res) => {
   const name = decodeURIComponent(req.params.name);
   res.json(await stopProject(name));
 });
 
-// Get logs
-app.get('/api/projects/:name/logs', (req, res) => {
+app.get('/api/projects/:name(*)/logs', (req, res) => {
   const name = decodeURIComponent(req.params.name);
   res.json(getLogs(name, parseInt(req.query.count) || 100));
 });
 
-// Manual screenshot
-app.post('/api/projects/:name/screenshot', async (req, res) => {
+app.post('/api/projects/:name(*)/screenshot', async (req, res) => {
   const name = decodeURIComponent(req.params.name);
-  const status = getStatus(name);
+  const project = findProject(name);
+  const screenshotName = project?.fullName || name;
+  const status = getStatus(screenshotName);
   if (status.status !== 'running' || !status.port) {
     return res.status(400).json({ error: 'Project must be running' });
   }
-  const project = getProjects().find(p => p.name === name);
   const commit = project ? getCurrentCommit(project.dir) : null;
   try {
-    const result = await captureScreenshot(name, status.port, commit?.sha || 'current');
+    const result = await captureScreenshot(screenshotName, status.port, commit?.sha || 'current');
     res.json({ ok: true, ...result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Serve screenshots
-app.get('/screenshots/:name/:file', (req, res) => {
-  const name = decodeURIComponent(req.params.name);
-  const file = req.params.file;
-  if (file.includes('..') || file.includes('/')) return res.status(400).send('Invalid');
+app.get('/screenshots/:name(*)', (req, res) => {
+  const parts = decodeURIComponent(req.params.name).split('/');
+  const file = parts.pop();
+  const name = parts.join('/');
+  if (file.includes('..')) return res.status(400).send('Invalid');
   const filePath = getScreenshotPath(name, file);
   if (!filePath) return res.status(404).send('Not found');
   res.sendFile(filePath);
 });
 
-// Crawl status
-app.get('/api/crawl', (req, res) => {
-  res.json(getCrawlStatus());
-});
-
-// Trigger crawl manually
+app.get('/api/crawl', (req, res) => res.json(getCrawlStatus()));
 app.post('/api/crawl', (req, res) => {
-  res.json({ ok: true, message: 'Crawl started' });
+  res.json({ ok: true });
   crawlAll(getProjects());
 });
 
-// SSE for real-time updates
 app.get('/api/status', (req, res) => {
-  res.writeHead(200, {
-    'Content-Type': 'text/event-stream',
-    'Cache-Control': 'no-cache',
-    Connection: 'keep-alive',
-  });
+  res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
   res.write(`data: ${JSON.stringify(getAllStatuses())}\n\n`);
   sseClients.add(res);
   req.on('close', () => sseClients.delete(res));
@@ -145,16 +157,15 @@ app.get('/api/status', (req, res) => {
 
 app.listen(PORT, () => {
   const projects = scanProjects();
+  const totalChildren = projects.reduce((n, p) => n + (p.children?.length || 0), 0);
   console.log(`Project Launcher running at http://localhost:${PORT}`);
-  console.log(`Found ${projects.length} projects`);
+  console.log(`Found ${projects.length} projects + ${totalChildren} sub-projects`);
 
-  // Start background crawl after a short delay (let server fully boot)
   setTimeout(() => {
     console.log('[startup] Starting background screenshot crawl...');
     crawlAll(projects);
   }, 2000);
 
-  // Re-crawl every 10 minutes to catch new commits
   setInterval(() => {
     console.log('[periodic] Checking for new screenshots needed...');
     cachedProjects = null;
