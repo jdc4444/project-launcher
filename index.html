@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Launcher</title>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #1a1a1a;
+    --surface2: #242424;
+    --border: #333;
+    --text: #e8e8e8;
+    --text2: #888;
+    --accent: #4f9eff;
+    --accent2: #3a7fd5;
+    --green: #34c759;
+    --red: #ff453a;
+    --orange: #ff9f0a;
+    --yellow: #ffd60a;
+    --radius: 12px;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f5f7;
+      --surface: #fff;
+      --surface2: #f0f0f0;
+      --border: #ddd;
+      --text: #1d1d1f;
+      --text2: #86868b;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* Top bar */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    backdrop-filter: blur(20px);
+  }
+
+  .topbar h1 {
+    font-size: 18px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .topbar .back-btn {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .topbar .back-btn:hover { background: var(--surface2); }
+
+  .search {
+    flex: 1;
+    max-width: 400px;
+    padding: 8px 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+  }
+  .search:focus { border-color: var(--accent); }
+
+  .filters {
+    display: flex;
+    gap: 6px;
+  }
+  .filter-chip {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-chip.active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .filter-chip:hover:not(.active) { border-color: var(--text2); }
+
+  .refresh-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 6px 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .refresh-btn:hover { border-color: var(--text); color: var(--text); }
+
+  /* Grid view */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 16px;
+    padding: 24px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+  }
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+
+  .card-thumb {
+    width: 100%;
+    height: 200px;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .card-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .card-thumb .placeholder {
+    font-size: 48px;
+    opacity: 0.3;
+  }
+
+  .card-status {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text2);
+    box-shadow: 0 0 6px rgba(0,0,0,0.5);
+  }
+  .card-status.running { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .card-status.starting { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+  .card-status.error { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+  .card-info {
+    padding: 14px 16px;
+  }
+  .card-name {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-meta {
+    font-size: 12px;
+    color: var(--text2);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .badge.node { background: #2d5016; color: #6cc644; }
+  .badge.html { background: #4a2800; color: #e34c26; }
+  .badge.python { background: #1a3a5c; color: #3776ab; }
+  .badge.swift { background: #4a1a00; color: #fa7343; }
+  .badge.collection { background: #2a2a00; color: #c9b458; }
+  .badge.unknown { background: #2a2a2a; color: #888; }
+
+  .port-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  /* Detail view */
+  .detail {
+    display: none;
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .detail-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 24px;
+  }
+
+  .detail-screenshot {
+    flex: 1;
+    min-height: 300px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .detail-screenshot img {
+    width: 100%;
+    height: auto;
+  }
+  .detail-screenshot .no-screenshot {
+    color: var(--text2);
+    text-align: center;
+    padding: 40px;
+  }
+
+  .detail-controls {
+    width: 300px;
+    flex-shrink: 0;
+  }
+
+  .detail-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .detail-path {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    margin-bottom: 16px;
+    word-break: break-all;
+  }
+
+  .detail-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .btn-start {
+    background: var(--green);
+    color: #fff;
+  }
+  .btn-start:hover { filter: brightness(1.1); }
+  .btn-stop {
+    background: var(--red);
+    color: #fff;
+  }
+  .btn-stop:hover { filter: brightness(1.1); }
+  .btn-screenshot {
+    background: var(--surface2);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-screenshot:hover { border-color: var(--accent); }
+  .btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .detail-status {
+    padding: 12px;
+    background: var(--surface2);
+    border-radius: 8px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .detail-status .label { color: var(--text2); font-size: 11px; text-transform: uppercase; }
+  .detail-status .value { font-weight: 600; margin-top: 2px; }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  /* Console */
+  .console-panel {
+    margin-top: 16px;
+  }
+  .console-toggle {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    width: 100%;
+    text-align: left;
+  }
+  .console-toggle:hover { color: var(--text); }
+  .console-output {
+    display: none;
+    margin-top: 8px;
+    background: #000;
+    border-radius: 8px;
+    padding: 12px;
+    max-height: 250px;
+    overflow-y: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .console-output .stdout { color: #aaa; }
+  .console-output .stderr { color: var(--orange); }
+  .console-output .system { color: var(--accent); }
+
+  /* Version timeline */
+  .timeline-section {
+    margin-top: 32px;
+  }
+  .timeline-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .timeline-title .count {
+    background: var(--surface2);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .timeline-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding-bottom: 12px;
+    scroll-snap-type: x proximity;
+  }
+  .timeline-scroll::-webkit-scrollbar { height: 6px; }
+  .timeline-scroll::-webkit-scrollbar-track { background: var(--surface2); border-radius: 3px; }
+  .timeline-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .timeline-item {
+    flex-shrink: 0;
+    width: 200px;
+    scroll-snap-align: start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .timeline-item:hover { border-color: var(--accent); }
+  .timeline-item.current { border-color: var(--green); border-width: 2px; }
+  .timeline-item.tag { border-color: var(--yellow); }
+
+  .timeline-thumb {
+    width: 100%;
+    height: 120px;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .timeline-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .timeline-thumb .no-capture {
+    font-size: 11px;
+    color: var(--text2);
+    text-align: center;
+    padding: 8px;
+  }
+
+  .timeline-info {
+    padding: 10px 12px;
+  }
+  .timeline-label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .timeline-date {
+    font-size: 11px;
+    color: var(--text2);
+  }
+  .timeline-msg {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Screenshot modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-overlay img {
+    max-width: 90vw;
+    max-height: 90vh;
+    border-radius: 8px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  /* Loading spinner */
+  .spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text2);
+  }
+  .empty h2 { font-size: 20px; margin-bottom: 8px; color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="back-btn" id="backBtn" onclick="showGrid()">← Back</button>
+  <h1 id="pageTitle">Project Launcher</h1>
+  <input class="search" id="search" type="text" placeholder="Search projects..." oninput="filterProjects()">
+  <div class="filters" id="filters">
+    <button class="filter-chip active" data-filter="all" onclick="setFilter('all', this)">All</button>
+    <button class="filter-chip" data-filter="node" onclick="setFilter('node', this)">Node</button>
+    <button class="filter-chip" data-filter="html" onclick="setFilter('html', this)">HTML</button>
+    <button class="filter-chip" data-filter="python" onclick="setFilter('python', this)">Python</button>
+    <button class="filter-chip" data-filter="swift" onclick="setFilter('swift', this)">Swift</button>
+  </div>
+  <button class="refresh-btn" onclick="loadProjects(true)">↻</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="detail" id="detail"></div>
+
+<div class="modal-overlay" id="modal" onclick="closeModal()">
+  <img id="modalImg" src="">
+</div>
+
+<script>
+let projects = [];
+let currentFilter = 'all';
+let currentProject = null;
+let statuses = {};
+
+// --- SSE for real-time updates ---
+const evtSource = new EventSource('/api/status');
+evtSource.onmessage = (e) => {
+  try {
+    const data = JSON.parse(e.data);
+    statuses = { ...statuses, ...data };
+    updateStatusDots();
+    if (currentProject) updateDetailStatus();
+  } catch {}
+};
+evtSource.addEventListener('status', (e) => {
+  try {
+    const data = JSON.parse(e.data);
+    statuses[data.name] = data;
+    updateStatusDots();
+    if (currentProject && currentProject.name === data.name) {
+      currentProject.status = data.status;
+      currentProject.port = data.port || currentProject.port;
+      updateDetailStatus();
+    }
+  } catch {}
+});
+
+// --- Load projects ---
+async function loadProjects(force = false) {
+  if (force) await fetch('/api/projects/refresh', { method: 'POST' });
+  const res = await fetch('/api/projects');
+  projects = await res.json();
+  renderGrid();
+}
+
+// --- Filter ---
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderGrid();
+}
+
+function filterProjects() {
+  renderGrid();
+}
+
+function getFilteredProjects() {
+  let list = projects;
+  if (currentFilter !== 'all') {
+    list = list.filter(p => p.type === currentFilter);
+  }
+  const q = document.getElementById('search').value.toLowerCase();
+  if (q) {
+    list = list.filter(p => p.name.toLowerCase().includes(q) || (p.framework || '').includes(q));
+  }
+  return list;
+}
+
+// --- Render grid ---
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  const filtered = getFilteredProjects();
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="empty"><h2>No projects found</h2><p>Try a different filter or search term</p></div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(p => {
+    const s = statuses[p.name] || p;
+    const status = s.status || 'stopped';
+    const thumbUrl = p.latestScreenshot ? `/screenshots/${encodeURIComponent(p.name)}/${p.latestScreenshot.thumb}` : '';
+    const typeIcons = { node: '⬡', html: '◇', python: '◆', swift: '◈', collection: '▣', unknown: '○' };
+
+    return `
+      <div class="card" onclick="showDetail('${p.name.replace(/'/g, "\\'")}')">
+        <div class="card-thumb">
+          ${thumbUrl ? `<img src="${thumbUrl}" alt="${p.name}">` : `<span class="placeholder">${typeIcons[p.type] || '○'}</span>`}
+          <div class="card-status ${status}"></div>
+        </div>
+        <div class="card-info">
+          <div class="card-name">
+            ${p.name}
+            <span class="badge ${p.type}">${p.type}</span>
+          </div>
+          <div class="card-meta">
+            ${p.port ? `<span class="port-label">:${s.port || p.port}</span>` : ''}
+            ${p.currentCommit ? `<span>${p.currentCommit.label || p.currentCommit.sha}</span>` : ''}
+            ${p.isGit ? '<span>git</span>' : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function updateStatusDots() {
+  document.querySelectorAll('.card').forEach(card => {
+    const name = card.getAttribute('onclick')?.match(/showDetail\('(.+?)'\)/)?.[1];
+    if (!name) return;
+    const s = statuses[name];
+    if (s) {
+      const dot = card.querySelector('.card-status');
+      if (dot) dot.className = `card-status ${s.status || 'stopped'}`;
+    }
+  });
+}
+
+// --- Detail view ---
+async function showDetail(name) {
+  document.getElementById('grid').style.display = 'none';
+  document.getElementById('detail').style.display = 'block';
+  document.getElementById('backBtn').style.display = 'inline-block';
+  document.getElementById('search').style.display = 'none';
+  document.getElementById('filters').style.display = 'none';
+  document.getElementById('pageTitle').textContent = name;
+
+  const res = await fetch(`/api/projects/${encodeURIComponent(name)}`);
+  currentProject = await res.json();
+  renderDetail();
+}
+
+function showGrid() {
+  document.getElementById('grid').style.display = 'grid';
+  document.getElementById('detail').style.display = 'none';
+  document.getElementById('backBtn').style.display = 'none';
+  document.getElementById('search').style.display = 'block';
+  document.getElementById('filters').style.display = 'flex';
+  document.getElementById('pageTitle').textContent = 'Project Launcher';
+  currentProject = null;
+  loadProjects();
+}
+
+function renderDetail() {
+  const p = currentProject;
+  if (!p) return;
+  const s = statuses[p.name] || p;
+  const status = s.status || 'stopped';
+  const isRunning = status === 'running';
+  const latestScreenshot = p.screenshots?.[0];
+  const screenshotUrl = latestScreenshot ? `/screenshots/${encodeURIComponent(p.name)}/${latestScreenshot.full}` : '';
+
+  // Build version timeline
+  const tags = p.history?.tags || [];
+  const commits = p.history?.commits || [];
+  const screenshotMap = {};
+  (p.screenshots || []).forEach(s => { screenshotMap[s.sha] = s; });
+
+  // Merge tags and commits into unified timeline
+  const timeline = [];
+  const tagShas = new Set(tags.map(t => t.sha));
+
+  for (const tag of tags) {
+    const sc = screenshotMap[tag.sha];
+    timeline.push({
+      label: tag.name,
+      sha: tag.sha,
+      date: tag.date,
+      message: '',
+      isTag: true,
+      isCurrent: p.history?.current?.sha === tag.sha,
+      screenshot: sc,
+    });
+  }
+
+  for (const c of commits) {
+    if (tagShas.has(c.sha)) continue; // skip if already shown as tag
+    const sc = screenshotMap[c.sha];
+    timeline.push({
+      label: c.sha,
+      sha: c.sha,
+      date: c.date,
+      message: c.message,
+      isTag: false,
+      isCurrent: p.history?.current?.sha === c.sha,
+      screenshot: sc,
+    });
+  }
+
+  document.getElementById('detail').innerHTML = `
+    <div class="detail-header">
+      <div class="detail-screenshot">
+        ${screenshotUrl
+          ? `<img src="${screenshotUrl}" onclick="openModal('${screenshotUrl}')" style="cursor:pointer" title="Click to enlarge">`
+          : `<div class="no-screenshot">No screenshot captured yet.<br>Start the project and click "Capture".</div>`
+        }
+      </div>
+      <div class="detail-controls">
+        <div class="detail-title">${p.name}</div>
+        <div class="detail-path">${p.dir}</div>
+
+        <div class="detail-actions">
+          ${!isRunning
+            ? `<button class="btn btn-start" onclick="startProj('${p.name.replace(/'/g, "\\'")}')" ${!p.launchable ? 'disabled title="Not launchable"' : ''}>▶ Start</button>`
+            : `<button class="btn btn-stop" onclick="stopProj('${p.name.replace(/'/g, "\\'")}')">■ Stop</button>`
+          }
+          <button class="btn btn-screenshot" onclick="takeScreenshot('${p.name.replace(/'/g, "\\'")}')" ${!isRunning ? 'disabled' : ''}>📷 Capture</button>
+        </div>
+
+        <div class="status-grid">
+          <div class="detail-status">
+            <div class="label">Status</div>
+            <div class="value" id="statusValue" style="color: ${isRunning ? 'var(--green)' : status === 'error' ? 'var(--red)' : 'var(--text2)'}">
+              ${status}
+            </div>
+          </div>
+          <div class="detail-status">
+            <div class="label">Port</div>
+            <div class="value">${s.port || p.port || '—'}</div>
+          </div>
+          <div class="detail-status">
+            <div class="label">Type</div>
+            <div class="value">${p.framework || p.type}</div>
+          </div>
+          <div class="detail-status">
+            <div class="label">Commit</div>
+            <div class="value">${p.history?.current?.label || '—'}</div>
+          </div>
+        </div>
+
+        <div class="console-panel">
+          <button class="console-toggle" onclick="toggleConsole()">Console Output ▾</button>
+          <div class="console-output" id="consoleOutput"></div>
+        </div>
+      </div>
+    </div>
+
+    ${timeline.length > 0 ? `
+    <div class="timeline-section">
+      <div class="timeline-title">
+        Version History
+        <span class="count">${tags.length} tags · ${commits.length} commits</span>
+      </div>
+      <div class="timeline-scroll">
+        ${timeline.map(v => {
+          const thumbUrl = v.screenshot ? `/screenshots/${encodeURIComponent(p.name)}/${v.screenshot.thumb}` : '';
+          return `
+            <div class="timeline-item ${v.isCurrent ? 'current' : ''} ${v.isTag ? 'tag' : ''}"
+                 ${v.screenshot ? `onclick="openModal('/screenshots/${encodeURIComponent(p.name)}/${v.screenshot.full}')"` : ''}
+                 title="${v.message || v.label}">
+              <div class="timeline-thumb">
+                ${thumbUrl
+                  ? `<img src="${thumbUrl}">`
+                  : `<div class="no-capture">No screenshot</div>`
+                }
+              </div>
+              <div class="timeline-info">
+                <div class="timeline-label">${v.isTag ? '🏷 ' : ''}${v.label}</div>
+                <div class="timeline-date">${v.date ? new Date(v.date).toLocaleDateString() : ''}</div>
+                ${v.message ? `<div class="timeline-msg">${escHtml(v.message)}</div>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+    ` : ''}
+  `;
+
+  if (isRunning) loadLogs();
+}
+
+function updateDetailStatus() {
+  if (!currentProject) return;
+  renderDetail(); // Simple re-render
+}
+
+// --- Actions ---
+async function startProj(name) {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Starting...';
+  const res = await fetch(`/api/projects/${encodeURIComponent(name)}/start`, { method: 'POST' });
+  const data = await res.json();
+  if (!data.ok) {
+    alert(data.error || 'Failed to start');
+  }
+  // Refresh detail
+  const r = await fetch(`/api/projects/${encodeURIComponent(name)}`);
+  currentProject = await r.json();
+  renderDetail();
+}
+
+async function stopProj(name) {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Stopping...';
+  await fetch(`/api/projects/${encodeURIComponent(name)}/stop`, { method: 'POST' });
+  // Refresh detail
+  const r = await fetch(`/api/projects/${encodeURIComponent(name)}`);
+  currentProject = await r.json();
+  renderDetail();
+}
+
+async function takeScreenshot(name) {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    const res = await fetch(`/api/projects/${encodeURIComponent(name)}/screenshot`, { method: 'POST' });
+    const data = await res.json();
+    if (!data.ok) {
+      alert(data.error || 'Screenshot failed');
+    }
+  } catch (err) {
+    alert('Screenshot failed: ' + err.message);
+  }
+  // Refresh detail
+  const r = await fetch(`/api/projects/${encodeURIComponent(name)}`);
+  currentProject = await r.json();
+  renderDetail();
+}
+
+// --- Console ---
+let consoleVisible = false;
+let logInterval = null;
+
+function toggleConsole() {
+  consoleVisible = !consoleVisible;
+  const el = document.getElementById('consoleOutput');
+  el.style.display = consoleVisible ? 'block' : 'none';
+  if (consoleVisible) loadLogs();
+}
+
+async function loadLogs() {
+  if (!currentProject) return;
+  const res = await fetch(`/api/projects/${encodeURIComponent(currentProject.name)}/logs?count=50`);
+  const logs = await res.json();
+  const el = document.getElementById('consoleOutput');
+  if (!el) return;
+  el.innerHTML = logs.map(l => `<div class="${l.stream}">${escHtml(l.line)}</div>`).join('');
+  el.scrollTop = el.scrollHeight;
+
+  // Auto-refresh logs
+  clearInterval(logInterval);
+  if (consoleVisible) {
+    logInterval = setInterval(loadLogs, 3000);
+  }
+}
+
+// --- Modal ---
+function openModal(src) {
+  event.stopPropagation();
+  document.getElementById('modalImg').src = src;
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('modal').classList.contains('active')) {
+      closeModal();
+    } else if (currentProject) {
+      showGrid();
+    }
+  }
+});
+
+// --- Utils ---
+function escHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// --- Init ---
+loadProjects();
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "project-launcher",
+  "version": "1.0.0",
+  "description": "Visual dashboard to browse, launch, and track projects",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "playwright": "^1.49.0"
+  }
+}
