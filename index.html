@@ -142,6 +142,15 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .empty { text-align: center; padding: 80px 20px; color: var(--text2); }
   .empty h2 { font-size: 20px; margin-bottom: 8px; color: var(--text); }
+  .loading { text-align: center; padding: 80px 20px; color: var(--text2); }
+  .loading .spinner { width: 28px; height: 28px; border-width: 3px; }
+
+  /* Card entrance animation */
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .card { animation: cardIn 0.3s ease-out both; }
 
   .crawl-bar { display: none; background: var(--surface); border-bottom: 1px solid var(--border); padding: 8px 24px; font-size: 12px; color: var(--text2); align-items: center; gap: 12px; }
   .crawl-bar.active { display: flex; }
@@ -173,7 +182,7 @@
   <span class="crawl-active" id="crawlActive"></span>
 </div>
 
-<div class="grid" id="grid"></div>
+<div class="grid" id="grid"><div class="loading"><span class="spinner"></span></div></div>
 <div class="detail" id="detail"></div>
 <div class="modal-overlay" id="modal" onclick="closeModal()"><img id="modalImg" src=""></div>
 
@@ -405,17 +414,23 @@ function renderCard(p, onclick) {
 }
 
 // --- Main grid ---
+let initialLoad = true;
 function renderGrid() {
   const grid = document.getElementById('grid');
   const filtered = applyFilter(projects);
-  if (filtered.length === 0) { grid.innerHTML = '<div class="empty"><h2>No projects found</h2></div>'; return; }
+  if (filtered.length === 0 && !initialLoad) {
+    grid.innerHTML = '<div class="empty"><h2>No projects found</h2></div>';
+    return;
+  }
+  if (filtered.length === 0) return; // Still loading
 
-  grid.innerHTML = filtered.map(p => {
-    if (p.type === 'collection') {
-      return renderCard(p, `navigate('collection', projects.find(x => x.name === '${p.name.replace(/'/g, "\\'")}'))`);
-    }
-    return renderCard(p);
+  grid.innerHTML = filtered.map((p, i) => {
+    const card = p.type === 'collection'
+      ? renderCard(p, `navigate('collection', projects.find(x => x.name === '${p.name.replace(/'/g, "\\'")}'))`)
+      : renderCard(p);
+    return card.replace('<div class="card"', `<div class="card" style="animation-delay:${i * 40}ms"`);
   }).join('');
+  initialLoad = false;
 }
 
 // --- Collection sub-grid ---
@@ -430,8 +445,8 @@ function renderCollectionGrid() {
   const filtered = applyFilter(currentCollection.children || []);
   if (filtered.length === 0) { grid.innerHTML = '<div class="empty"><h2>No matching projects</h2></div>'; return; }
 
-  grid.innerHTML = filtered.map(p => {
-    return renderCard(p);
+  grid.innerHTML = filtered.map((p, i) => {
+    return renderCard(p).replace('<div class="card"', `<div class="card" style="animation-delay:${i * 40}ms"`);
   }).join('');
 }
 
