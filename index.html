@@ -65,10 +65,11 @@
   .card-status.running:hover { background: var(--red); box-shadow: 0 0 8px var(--red); transform: scale(1.4); }
   .card-status.starting { background: var(--orange); }
   .card-status.error { background: var(--red); }
-  .card-info { padding: 14px 16px; cursor: pointer; }
+  .card-info { padding: 7px 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
   .card-info:hover { background: var(--surface2); }
-  .card-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
-  .card-meta { font-size: 12px; color: var(--text2); display: flex; gap: 12px; align-items: center; }
+  .card-name { font-size: 14px; font-weight: 600; }
+  .card-plus { font-size: 16px; color: var(--text2); opacity: 0.4; transition: opacity 0.15s; }
+  .card-info:hover .card-plus { opacity: 1; }
 
   .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
   .badge.node { background: #2d5016; color: #6cc644; }
@@ -434,8 +435,8 @@ function renderCard(p, onclick) {
           <span class="child-count">${p.launchableChildren || 0} projects</span>
         </div>
         <div class="card-info">
-          <div class="card-name">${escHtml(p.name)} <span class="badge collection">folder</span></div>
-          <div class="card-meta">${p.childCount} items${p.isGit ? ' · git' : ''}</div>
+          <div class="card-name">${escHtml(p.name.replace(/[-_]/g, ' '))}</div>
+          <div style="font-size:11px;color:var(--text2)">${p.childCount} items</div>
         </div>
       </div>`;
   }
@@ -450,14 +451,8 @@ function renderCard(p, onclick) {
         <div class="status-dot card-status ${status}" ${isRunning ? `onclick="event.stopPropagation();stopFromCard('${apiName}')" title="Click to stop"` : ''}></div>
       </div>
       <div class="card-info" onclick="showDetail('${apiName}')">
-        <div class="card-name">
-          ${escHtml(p.name)} <span class="badge ${badgeType}">${badgeType}</span>
-        </div>
-        <div class="card-meta">
-          ${p.port ? `<span class="port-label">:${s.port || p.port}</span>` : ''}
-          ${p.currentCommit ? `<span>${p.currentCommit.label || p.currentCommit.sha}</span>` : ''}
-          ${p.isGit ? '<span>git</span>' : ''}
-        </div>
+        <div class="card-name">${escHtml(p.name.replace(/[-_]/g, ' '))}</div>
+        ${p.isGit ? '<div class="card-plus">+</div>' : ''}
       </div>
     </div>`;
 }
