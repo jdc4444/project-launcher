@@ -1,6 +1,6 @@
 const express = require('express');
 const path = require('path');
-const { scanProjects } = require('./lib/scanner');
+const { scanProjects, syncLaunchJSON } = require('./lib/scanner');
 const { getVersionHistory, getCurrentCommit } = require('./lib/git');
 const { startProject, stopProject, getStatus, getLogs, getAllStatuses, sseClients, broadcast } = require('./lib/processes');
 const { captureScreenshot, getScreenshots, getLatestScreenshot, getScreenshotPath } = require('./lib/screenshots');
@@ -160,6 +160,9 @@ app.listen(PORT, () => {
   const totalChildren = projects.reduce((n, p) => n + (p.children?.length || 0), 0);
   console.log(`Project Launcher running at http://localhost:${PORT}`);
   console.log(`Found ${projects.length} projects + ${totalChildren} sub-projects`);
+
+  // Auto-register all projects in launch.json with stable ports
+  syncLaunchJSON(projects);
 
   // Detect already-running projects by checking their known ports
   const { detectRunning } = require('./lib/processes');
