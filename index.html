@@ -58,6 +58,12 @@
   .card-status.running { background: var(--green); box-shadow: 0 0 8px var(--green); }
   .card-status.starting { background: var(--orange); }
   .card-status.error { background: var(--red); }
+  .card-actions { position: absolute; bottom: 8px; right: 8px; display: flex; gap: 4px; opacity: 0; transition: opacity 0.15s; }
+  .card:hover .card-actions { opacity: 1; }
+  .card-action-btn { width: 28px; height: 28px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px); transition: transform 0.1s; }
+  .card-action-btn:hover { transform: scale(1.1); }
+  .card-action-btn.stop { background: rgba(255,69,58,0.85); color: #fff; }
+  .card-action-btn.info { background: rgba(255,255,255,0.85); color: #333; font-weight: 700; }
   .card-info { padding: 14px 16px; }
   .card-name { font-size: 15px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
   .card-meta { font-size: 12px; color: var(--text2); display: flex; gap: 12px; align-items: center; }
@@ -367,11 +373,21 @@ function renderCard(p, onclick) {
       </div>`;
   }
 
+  const apiName = (p.fullName || p.name).replace(/'/g, "\\'");
+  const isRunning = status === 'running';
+  const cardClick = p.launchable
+    ? `launchOrOpen('${apiName}', ${s.port || p.port || 'null'})`
+    : `showDetail('${apiName}')`;
+
   return `
-    <div class="card" onclick="${onclick}">
+    <div class="card" onclick="${cardClick}">
       <div class="card-thumb">
         ${thumbUrl ? `<img src="${thumbUrl}" alt="${escHtml(p.name)}">` : `<span class="placeholder">${icons[p.type] || '○'}</span>`}
         <div class="card-status ${status}"></div>
+        <div class="card-actions">
+          ${p.launchable && isRunning ? `<button class="card-action-btn stop" onclick="event.stopPropagation();stopFromCard('${apiName}')" title="Stop">■</button>` : ''}
+          <button class="card-action-btn info" onclick="event.stopPropagation();showDetail('${apiName}')" title="Version history">+</button>
+        </div>
       </div>
       <div class="card-info">
         <div class="card-name">${escHtml(p.name)} <span class="badge ${badgeType}">${badgeType}</span></div>
@@ -394,8 +410,7 @@ function renderGrid() {
     if (p.type === 'collection') {
       return renderCard(p, `navigate('collection', projects.find(x => x.name === '${p.name.replace(/'/g, "\\'")}'))`);
     }
-    const apiName = (p.fullName || p.name).replace(/'/g, "\\'");
-    return renderCard(p, `showDetail('${apiName}')`);
+    return renderCard(p);
   }).join('');
 }
 
@@ -412,8 +427,7 @@ function renderCollectionGrid() {
   if (filtered.length === 0) { grid.innerHTML = '<div class="empty"><h2>No matching projects</h2></div>'; return; }
 
   grid.innerHTML = filtered.map(p => {
-    const apiName = (p.fullName || `${currentCollection.name}/${p.name}`).replace(/'/g, "\\'");
-    return renderCard(p, `showDetail('${apiName}')`);
+    return renderCard(p);
   }).join('');
 }
 
@@ -498,6 +512,26 @@ function renderDetail() {
       </div>
     </div>` : ''}`;
   if (isRunning) loadLogs();
+}
+
+// --- Card actions ---
+async function launchOrOpen(name, port) {
+  const s = statuses[name];
+  if (s && s.status === 'running' && s.port) {
+    window.open(`http://localhost:${s.port}`, '_blank');
+    return;
+  }
+  // Start it
+  const res = await fetch(`/api/projects/${encodeURIComponent(name)}/start`, { method: 'POST' });
+  const data = await res.json();
+  if (data.ok && data.port) {
+    window.open(`http://localhost:${data.port}`, '_blank');
+  }
+  loadProjects();
+}
+async function stopFromCard(name) {
+  await fetch(`/api/projects/${encodeURIComponent(name)}/stop`, { method: 'POST' });
+  loadProjects();
 }
 
 // --- Actions ---
