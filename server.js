@@ -1,4 +1,5 @@
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 const { scanProjects, syncLaunchJSON, readOverridesConfig, writeOverridesConfig, BASE_DIR } = require('./lib/scanner');
 const { getVersionHistory, getCurrentCommit } = require('./lib/git');
@@ -17,6 +18,130 @@ app.use((req, res, next) => {
 app.use(express.json());
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
+app.get('/launch/:name(*)', (req, res) => {
+  const name = decodeURIComponent(req.params.name);
+  const project = findProject(name);
+  if (!project) return res.status(404).send('Project not found');
+  if (!project.launchable) return res.status(400).send('Project is not launchable');
+
+  const escapedName = JSON.stringify(name);
+  const defaultProtocol = JSON.stringify(project.protocol || 'http');
+  const escapedLabel = String(project.name || name)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  res.type('html').send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Launching ${escapedLabel}</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0d0d0d;
+      --surface: #1a1a1a;
+      --border: #333;
+      --text: #e8e8e8;
+      --text2: #888;
+      --accent: #4f9eff;
+      --red: #ff453a;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f5f5f7;
+        --surface: #fff;
+        --border: #ddd;
+        --text: #1d1d1f;
+        --text2: #86868b;
+      }
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    .shell {
+      width: min(420px, calc(100vw - 40px));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: var(--surface);
+      padding: 28px 26px;
+      box-shadow: 0 22px 80px rgba(0,0,0,0.28);
+    }
+    .eyebrow {
+      margin-bottom: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text2);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      line-height: 1.15;
+    }
+    p {
+      margin: 0;
+      color: var(--text2);
+      line-height: 1.45;
+      font-size: 14px;
+    }
+    .spinner {
+      width: 28px;
+      height: 28px;
+      margin-bottom: 18px;
+      border-radius: 999px;
+      border: 3px solid color-mix(in srgb, var(--border) 65%, transparent);
+      border-top-color: var(--accent);
+      animation: spin 0.7s linear infinite;
+    }
+    .error { color: var(--red); }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="spinner"></div>
+    <div class="eyebrow">Launching</div>
+    <h1>${escapedLabel}</h1>
+    <p id="status">Starting app...</p>
+  </div>
+  <script>
+    (async () => {
+      const status = document.getElementById('status');
+      try {
+        const res = await fetch('/api/projects/' + encodeURIComponent(${escapedName}) + '/start', { method: 'POST' });
+        const data = await res.json();
+        if (data.ok && data.port) {
+          const protocol = data.protocol || ${defaultProtocol};
+          window.location.replace(protocol + '://localhost:' + data.port);
+          return;
+        }
+        if (data.ok && data.nativeApp) {
+          status.textContent = 'Native app launched.';
+          setTimeout(() => window.close(), 400);
+          return;
+        }
+        status.textContent = data.error || 'Failed to launch.';
+        status.classList.add('error');
+      } catch (err) {
+        status.textContent = err.message || 'Failed to launch.';
+        status.classList.add('error');
+      }
+    })();
+  </script>
+</body>
+</html>`);
+});
 
 // --- Project cache ---
 let cachedProjects = null;
@@ -39,6 +164,15 @@ function invalidateProjectCache() {
 
 function getProjectKey(project) {
   return project.fullName || project.name;
+}
+
+function flattenProjects(projects) {
+  const flat = [];
+  for (const project of projects) {
+    flat.push(project);
+    if (project.children) flat.push(...project.children);
+  }
+  return flat;
 }
 
 // Find a project by name (supports "parent/child" for sub-projects)
@@ -89,6 +223,60 @@ app.get('/api/meta', (req, res) => {
 app.post('/api/projects/refresh', (req, res) => {
   invalidateProjectCache();
   res.json({ ok: true });
+});
+
+app.post('/api/projects/drop-folder', (req, res) => {
+  const folderName = typeof req.body?.folderName === 'string' ? req.body.folderName.trim() : '';
+  const folderPath = typeof req.body?.folderPath === 'string' ? req.body.folderPath.trim() : '';
+  const baseRoot = path.resolve(BASE_DIR);
+  const basePrefix = `${baseRoot}${path.sep}`;
+
+  let resolvedPath = '';
+  if (folderPath) {
+    resolvedPath = path.resolve(folderPath);
+    if (resolvedPath !== baseRoot && !resolvedPath.startsWith(basePrefix)) {
+      return res.status(400).json({ error: `Drop a folder from ${baseRoot}` });
+    }
+    try {
+      if (!fs.statSync(resolvedPath).isDirectory()) {
+        return res.status(400).json({ error: 'Dropped item is not a folder' });
+      }
+    } catch {
+      return res.status(404).json({ error: 'Dropped folder not found' });
+    }
+  }
+
+  invalidateProjectCache();
+  const refreshed = getProjects();
+  syncLaunchJSON(refreshed);
+
+  const flatProjects = flattenProjects(refreshed);
+  const normalizedName = folderName || path.basename(resolvedPath || '');
+  const matched = flatProjects.find(project => {
+    const projectDir = path.resolve(project.dir || '');
+    if (resolvedPath && projectDir === resolvedPath) return true;
+    if (!resolvedPath && normalizedName) {
+      return path.basename(projectDir) === normalizedName || project.name === normalizedName;
+    }
+    return false;
+  });
+
+  if (!matched) {
+    return res.status(404).json({
+      error: `Couldn't find that folder in ${baseRoot}`,
+    });
+  }
+
+  res.json({
+    ok: true,
+    item: {
+      key: getProjectKey(matched),
+      name: matched.name,
+      type: matched.type,
+      synthetic: !!matched.synthetic,
+      parentName: matched.parentName || null,
+    },
+  });
 });
 
 function handleGroupProject(req, res) {

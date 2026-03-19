@@ -62,8 +62,8 @@
   .card.draggable, .card[data-drop-type] { touch-action: none; }
   body.dragging-project, body.dragging-project * { user-select: none; cursor: grabbing !important; }
   .card-thumb { width: 100%; height: 200px; background: var(--surface2); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; cursor: pointer; }
-  .card-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .card-thumb img, .mini-grid img { -webkit-user-drag: none; user-select: none; }
+  .card-thumb img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+  .card-thumb img, .mini-grid img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
   .card-thumb .placeholder { font-size: 48px; opacity: 0.3; }
   .card-status { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--text2); box-shadow: 0 0 6px rgba(0,0,0,0.5); transition: background 0.15s, box-shadow 0.15s, transform 0.15s; }
   .card-status.running { background: var(--green); box-shadow: 0 0 8px var(--green); cursor: pointer; }
@@ -218,6 +218,40 @@
   .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; cursor: pointer; }
   .modal-overlay.active { display: flex; }
   .modal-overlay img { max-width: 90vw; max-height: 90vh; border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .drop-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 180;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+    backdrop-filter: blur(6px);
+  }
+  .drop-overlay.active { display: flex; }
+  .drop-overlay-card {
+    min-width: 280px;
+    padding: 18px 22px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--accent) 42%, var(--border));
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    box-shadow: 0 18px 60px rgba(0,0,0,0.28);
+    text-align: center;
+  }
+  .drop-overlay-title {
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .drop-overlay-path {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
 
   .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -269,6 +303,13 @@
   <span class="crawl-active" id="crawlActive"></span>
 </div>
 
+<div class="drop-overlay" id="dropOverlay">
+  <div class="drop-overlay-card">
+    <div class="drop-overlay-title">Drop Folder</div>
+    <div class="drop-overlay-path" id="dropOverlayPath">Add from Code/</div>
+  </div>
+</div>
+
 <div class="grid" id="grid"><div class="loading"><span class="spinner"></span></div></div>
 <div class="detail" id="detail"></div>
 <div class="modal-overlay" id="modal" onclick="closeModal()"><img id="modalImg" src=""></div>
@@ -287,6 +328,7 @@ let editingGroupDraft = '';
 let statuses = {};
 let navStack = []; // ['grid'] or ['grid', 'World Code'] or ['grid', 'World Code', 'festival globe']
 let rootDirectoryName = 'Directory';
+let externalDropDepth = 0;
 
 // --- SSE ---
 const evtSource = new EventSource('/api/status');
@@ -457,12 +499,17 @@ document.addEventListener('click', e => {
 }, true);
 
 // --- Filters ---
+function setActiveFilterChip(filter) {
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.classList.toggle('active', chip.dataset.filter === filter);
+  });
+}
+
 function setFilter(filter, btn) {
   currentFilter = filter;
-  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
-  btn.classList.add('active');
-  if (currentCollection) renderCollectionGrid();
-  else renderGrid();
+  if (btn) btn.blur();
+  setActiveFilterChip(filter);
+  navigate('grid');
 }
 function filterProjects() {
   if (currentCollection) renderCollectionGrid();
@@ -471,6 +518,131 @@ function filterProjects() {
 function getSearchQuery() {
   return document.getElementById('search').value.trim().toLowerCase();
 }
+
+function pathBasename(pathValue) {
+  if (!pathValue) return '';
+  const normalized = String(pathValue).replace(/\/+$/, '');
+  const parts = normalized.split('/');
+  return parts[parts.length - 1] || '';
+}
+
+function getDropOverlay() {
+  return document.getElementById('dropOverlay');
+}
+
+function setExternalDropActive(active, folderName = '') {
+  const overlay = getDropOverlay();
+  if (!overlay) return;
+  const label = folderName ? `${rootDirectoryName}/${folderName}` : `Add from ${rootDirectoryName}/`;
+  document.getElementById('dropOverlayPath').textContent = label;
+  overlay.classList.toggle('active', active);
+}
+
+function isExternalFileDrag(event) {
+  const types = Array.from(event.dataTransfer?.types || []);
+  return types.includes('Files');
+}
+
+function parseDroppedFileUriList(data) {
+  if (!data) return [];
+  return data
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line && !line.startsWith('#'))
+    .map(line => {
+      try {
+        const url = new URL(line);
+        if (url.protocol !== 'file:') return '';
+        return decodeURIComponent(url.pathname);
+      } catch {
+        return '';
+      }
+    })
+    .filter(Boolean);
+}
+
+function getDroppedFolderPayload(event) {
+  const items = Array.from(event.dataTransfer?.items || []);
+  const entry = items
+    .map(item => {
+      try {
+        return typeof item.webkitGetAsEntry === 'function' ? item.webkitGetAsEntry() : null;
+      } catch {
+        return null;
+      }
+    })
+    .find(candidate => candidate?.isDirectory);
+
+  const filePaths = parseDroppedFileUriList(event.dataTransfer?.getData?.('text/uri-list') || '');
+  const files = Array.from(event.dataTransfer?.files || []);
+  const directPathFile = files.find(file => typeof file.path === 'string' && file.path);
+  let folderPath = filePaths[0] || directPathFile?.path || '';
+  const folderName = entry?.name || pathBasename(folderPath);
+  if (entry?.isDirectory && folderPath && pathBasename(folderPath) !== entry.name) {
+    folderPath = '';
+  }
+
+  return { folderName, folderPath };
+}
+
+async function handleExternalFolderDrop(event) {
+  const payload = getDroppedFolderPayload(event);
+  if (!payload.folderName && !payload.folderPath) {
+    throw new Error(`Drop a folder from ${rootDirectoryName}/`);
+  }
+
+  const res = await fetch('/api/projects/drop-folder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.ok) {
+    throw new Error(data.error || `Drop a folder from ${rootDirectoryName}/`);
+  }
+
+  document.getElementById('search').value = '';
+  const nextFilter = data.item?.type === 'collection' ? 'folders' : 'all';
+  currentFilter = nextFilter;
+  setActiveFilterChip(nextFilter);
+  navigate('grid');
+  await loadProjects();
+}
+
+function bindExternalFolderDrop() {
+  window.addEventListener('dragenter', event => {
+    if (!isExternalFileDrag(event)) return;
+    externalDropDepth += 1;
+    const payload = getDroppedFolderPayload(event);
+    setExternalDropActive(true, payload.folderName);
+  });
+
+  window.addEventListener('dragover', event => {
+    if (!isExternalFileDrag(event)) return;
+    event.preventDefault();
+    const payload = getDroppedFolderPayload(event);
+    setExternalDropActive(true, payload.folderName);
+  });
+
+  window.addEventListener('dragleave', event => {
+    if (!isExternalFileDrag(event)) return;
+    externalDropDepth = Math.max(0, externalDropDepth - 1);
+    if (externalDropDepth === 0) setExternalDropActive(false);
+  });
+
+  window.addEventListener('drop', async event => {
+    if (!isExternalFileDrag(event)) return;
+    event.preventDefault();
+    externalDropDepth = 0;
+    setExternalDropActive(false);
+    try {
+      await handleExternalFolderDrop(event);
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+}
+
 function matchesSearch(item, query = getSearchQuery()) {
   if (!query) return true;
   return item.name.toLowerCase().includes(query) || (item.framework || '').toLowerCase().includes(query);
@@ -776,7 +948,6 @@ function handleCardPointerDown(event) {
   const card = event.currentTarget;
   const name = card.dataset.name || '';
   if (!name) return;
-  event.preventDefault();
   if (typeof card.setPointerCapture === 'function') {
     try { card.setPointerCapture(event.pointerId); } catch {}
   }
@@ -920,6 +1091,32 @@ async function handleCardDrop(event) {
   return handleGlobalPointerUp(event);
 }
 
+let suppressProjectCardClickUntil = 0;
+
+function suppressProjectCardClick() {
+  suppressProjectCardClickUntil = Date.now() + 250;
+}
+
+function handleProjectCardClick(name) {
+  if (Date.now() < suppressProjectCardClickUntil) return;
+  showDetail(name);
+}
+
+function handleProjectThumbClick(name, launchable) {
+  suppressProjectCardClick();
+  if (launchable) launchOrOpen(name);
+  else showDetail(name);
+}
+
+function handleProjectInfoClick(name) {
+  showDetail(name);
+}
+
+function handleProjectStatusClick(name) {
+  suppressProjectCardClick();
+  stopFromCard(name);
+}
+
 function withAnimationDelay(cardHtml, delay) {
   return cardHtml.replace(/<div class="([^"]*card[^"]*)"/, `<div class="$1" style="animation-delay:${delay}ms"`);
 }
@@ -983,12 +1180,12 @@ function renderCard(p, onclick, options = {}) {
   const commitStamp = formatCommitStamp(p);
 
   return `
-    <div class="${cardClasses.join(' ')}" data-name="${escHtml(apiName)}"${dragAttrs}${dropAttrs}>
-      <div class="card-thumb" onclick="${p.launchable ? `launchOrOpen('${apiName}')` : `showDetail('${apiName}')`}">
+    <div class="${cardClasses.join(' ')}" data-name="${escHtml(apiName)}"${dragAttrs}${dropAttrs} onclick="handleProjectCardClick('${apiName}')">
+      <div class="card-thumb" onclick="handleProjectThumbClick('${apiName}', ${p.launchable ? 'true' : 'false'})">
         ${thumbUrl ? `<img src="${thumbUrl}" alt="${escHtml(p.name)}" draggable="false">` : `<span class="placeholder">${icons[p.type] || '○'}</span>`}
-        <div class="status-dot card-status ${status}" ${isRunning ? `onclick="event.stopPropagation();stopFromCard('${apiName}')" title="Click to stop"` : ''}></div>
+        <div class="status-dot card-status ${status}" ${isRunning ? `onclick="handleProjectStatusClick('${apiName}')" title="Click to stop"` : ''}></div>
       </div>
-      <div class="card-info" onclick="showDetail('${apiName}')">
+      <div class="card-info" onclick="handleProjectInfoClick('${apiName}')">
         <div class="card-main">
           <div class="card-name">${escHtml(formatProjectLabel(p.name))}</div>
         </div>
@@ -1285,17 +1482,7 @@ async function launchOrOpen(name) {
     openProjectUrl(name);
     return;
   }
-  // Start it
-  const res = await fetch(`/api/projects/${encodeURIComponent(name)}/start`, { method: 'POST' });
-  const data = await res.json();
-  if (data.ok && data.port) {
-    openProjectUrl(name, data.port);
-  } else if (data.ok && data.nativeApp) {
-    // Native app launched, nothing to open in browser
-  } else if (!data.ok) {
-    alert(data.error || 'Failed to start');
-  }
-  // SSE status events handle the dot update — no grid rebuild needed
+  window.open(`/launch/${encodeURIComponent(name)}`, '_blank');
 }
 async function stopFromCard(name) {
   await fetch(`/api/projects/${encodeURIComponent(name)}/stop`, { method: 'POST' });
@@ -1366,6 +1553,7 @@ function escJs(s) { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, 
 // --- Init ---
 updateSortButton();
 navigate('grid');
+bindExternalFolderDrop();
 loadMeta();
 loadProjects();
 </script>
