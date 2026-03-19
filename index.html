@@ -27,6 +27,8 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
+  body.aspect-square { --tile-min: 260px; }
+  body.aspect-wide { --tile-min: 320px; }
 
   .topbar {
     position: sticky; top: 0; z-index: 100; background: var(--surface);
@@ -50,6 +52,21 @@
   .topbar-right { display: flex; gap: 6px; margin-left: auto; align-items: center; flex-shrink: 0; }
   .sort-btn { height: 32px; background: none; border: 1px solid var(--border); color: var(--text2); padding: 0 10px; border-radius: 8px; cursor: pointer; font-size: 11px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; }
   .sort-btn:hover { border-color: var(--text); color: var(--text); }
+  .aspect-icon {
+    display: inline-block;
+    border: 1.5px solid currentColor;
+    border-radius: 3px;
+    opacity: 0.9;
+    flex-shrink: 0;
+  }
+  .aspect-icon.square {
+    width: 13px;
+    height: 13px;
+  }
+  .aspect-icon.wide {
+    width: 17px;
+    height: 10px;
+  }
   .stop-all-btn { height: 32px; background: none; border: 1px solid var(--border); color: var(--red); padding: 0 10px; border-radius: 8px; cursor: pointer; font-size: 11px; opacity: 0.7; display: inline-flex; align-items: center; justify-content: center; }
   .stop-all-btn:hover { border-color: var(--red); opacity: 1; }
 
@@ -148,6 +165,60 @@
   .card-commit { font-size: 10px; color: rgba(255,255,255,0.76); opacity: 0.95; font-family: var(--mono); white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
   .card-plus { font-size: 16px; color: rgba(255,255,255,0.62); opacity: 0.9; transition: opacity 0.15s; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
   .card-info:hover .card-plus { opacity: 1; color: #fff; }
+  body.aspect-wide .card { aspect-ratio: auto; }
+  body.aspect-wide .card-thumb { height: 200px; }
+  body.aspect-wide .card-thumb::after { box-shadow: none; }
+  body.aspect-wide .card-info {
+    position: static;
+    padding: 7px 12px;
+    color: var(--text);
+    background: transparent;
+    align-items: center;
+  }
+  body.aspect-wide .card-info:hover { background: var(--surface2); }
+  body.aspect-wide .card-main { gap: 2px; }
+  body.aspect-wide .card-name {
+    font-size: 14px;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    backdrop-filter: none;
+    text-shadow: none;
+    color: var(--text);
+  }
+  body.aspect-wide .card-subtitle {
+    font-size: 11px;
+    color: var(--text2);
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    backdrop-filter: none;
+  }
+  body.aspect-wide .card-meta {
+    gap: 8px;
+    margin-left: auto;
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    backdrop-filter: none;
+  }
+  body.aspect-wide .card-commit {
+    color: var(--text2);
+    text-shadow: none;
+  }
+  body.aspect-wide .card-plus {
+    color: var(--text2);
+    text-shadow: none;
+  }
+  body.aspect-wide .card-info:hover .card-plus { color: var(--text); }
+  body.aspect-wide .card-status::before { display: none; }
+  body.aspect-wide .group-dissolve-btn {
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(0,0,0,0.22);
+  }
+  body.aspect-wide .group-dissolve-btn:hover {
+    background: rgba(0,0,0,0.4);
+  }
   .rename-btn {
     border: 1px solid var(--border);
     background: transparent;
@@ -344,7 +415,8 @@
   .crawl-active { color: var(--accent); font-weight: 500; }
 
   @media (max-width: 900px) {
-    :root { --tile-min: 220px; }
+    body.aspect-square { --tile-min: 220px; }
+    body.aspect-wide { --tile-min: 260px; }
     .grid { padding: 18px; gap: 14px; }
     .detail { padding: 18px; }
     .detail-header { flex-direction: column; }
@@ -354,7 +426,8 @@
   }
 
   @media (max-width: 720px) {
-    :root { --tile-min: 168px; }
+    body.aspect-square { --tile-min: 168px; }
+    body.aspect-wide { --tile-min: 220px; }
     .topbar {
       gap: 10px;
       padding: 12px;
@@ -404,6 +477,9 @@
     .empty,
     .loading { padding: 56px 16px; }
     .timeline-item { width: 170px; }
+    body.aspect-wide .card-thumb { height: 124px; }
+    body.aspect-wide .card-info { padding: 8px 10px; }
+    body.aspect-wide .card-meta { gap: 6px; }
   }
 </style>
 </head>
@@ -424,6 +500,7 @@
   </div>
   <input class="search" id="search" type="text" placeholder="Search projects..." oninput="filterProjects()">
   <div class="topbar-right">
+    <button class="sort-btn" id="aspectBtn" onclick="toggleAspect()" title="Toggle card aspect ratio">1:1</button>
     <button class="sort-btn" id="sortBtn" onclick="cycleSort()" title="Change sort">↓</button>
     <button class="stop-all-btn" id="stopAllBtn" onclick="stopAll()" title="Stop all">&#9632;</button>
   </div>
@@ -463,6 +540,13 @@ let navStack = []; // ['grid'] or ['grid', 'World Code'] or ['grid', 'World Code
 let rootDirectoryName = 'Directory';
 let externalDropDepth = 0;
 let projectsLoadPromise = null;
+let currentAspect = (() => {
+  try {
+    return localStorage.getItem('projectLauncherAspect') === 'wide' ? 'wide' : 'square';
+  } catch {
+    return 'square';
+  }
+})();
 
 // --- SSE ---
 const evtSource = new EventSource('/api/status');
@@ -981,6 +1065,30 @@ function updateSortButton() {
   btn.innerHTML = labels[currentSort] || '&darr;';
   btn.title = titles[currentSort] || 'Change sort';
 }
+function updateAspectButton() {
+  const btn = document.getElementById('aspectBtn');
+  if (!btn) return;
+  const iconClass = currentAspect === 'wide' ? 'wide' : 'square';
+  btn.innerHTML = `<span class="aspect-icon ${iconClass}" aria-hidden="true"></span>`;
+  btn.setAttribute('aria-label', currentAspect === 'wide' ? 'Wide cards' : 'Square cards');
+  btn.title = currentAspect === 'wide' ? 'Switch to square cards' : 'Switch to wide cards';
+}
+function applyAspectMode() {
+  document.body.classList.toggle('aspect-square', currentAspect === 'square');
+  document.body.classList.toggle('aspect-wide', currentAspect === 'wide');
+}
+function setAspect(aspect) {
+  currentAspect = aspect === 'wide' ? 'wide' : 'square';
+  try {
+    localStorage.setItem('projectLauncherAspect', currentAspect);
+  } catch {}
+  applyAspectMode();
+  updateAspectButton();
+  renderCurrentView();
+}
+function toggleAspect() {
+  setAspect(currentAspect === 'square' ? 'wide' : 'square');
+}
 function parseCommitDate(dateStr) {
   if (!dateStr) return 0;
   const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) ([+-])(\d{2})(\d{2})$/);
@@ -1286,12 +1394,21 @@ function withAnimationDelay(cardHtml, delay) {
   return cardHtml.replace(/<div class="([^"]*card[^"]*)"/, `<div class="$1" style="animation-delay:${delay}ms"`);
 }
 
+function getScreenshotThumbUrl(projectName, screenshot, aspect = currentAspect) {
+  if (!projectName || !screenshot) return '';
+  const filename = aspect === 'wide'
+    ? (screenshot.wideThumb || screenshot.thumb)
+    : screenshot.thumb;
+  if (!filename) return '';
+  return `/screenshots/${encodeURIComponent(projectName)}/${filename}`;
+}
+
 // --- Render cards ---
 function renderCard(p, onclick, options = {}) {
   const s = statuses[p.fullName || p.name] || p;
   const status = s.status || 'stopped';
   const screenshotName = p.fullName || p.name;
-  const thumbUrl = p.latestScreenshot ? `/screenshots/${encodeURIComponent(screenshotName)}/${p.latestScreenshot.thumb}` : '';
+  const thumbUrl = getScreenshotThumbUrl(screenshotName, p.latestScreenshot);
   const icons = { node: '⬡', html: '◇', python: '⬡', swift: '◇', collection: '⬡', electron: '◇', unknown: '○' };
   const badgeType = p.framework === 'electron-html' ? 'electron' : p.type;
   const dragAttrs = options.draggable
@@ -1315,7 +1432,7 @@ function renderCard(p, onclick, options = {}) {
         .sort((a, b) => getSortTimestamp(b) - getSortTimestamp(a))[0];
       if (latestChild?.latestScreenshot) {
         const cName = latestChild.fullName || latestChild.name;
-        thumbHtml = `<img src="/screenshots/${encodeURIComponent(cName)}/${latestChild.latestScreenshot.thumb}" draggable="false">`;
+        thumbHtml = `<img src="${getScreenshotThumbUrl(cName, latestChild.latestScreenshot)}" draggable="false">`;
       }
     } else {
       const thumbChildren = [...children]
@@ -1325,9 +1442,28 @@ function renderCard(p, onclick, options = {}) {
       if (thumbChildren.length > 0) {
         thumbHtml = `<div class="mini-grid">${thumbChildren.map(c => {
           const cName = c.fullName || c.name;
-          return `<img src="/screenshots/${encodeURIComponent(cName)}/${c.latestScreenshot.thumb}" draggable="false">`;
+          return `<img src="${getScreenshotThumbUrl(cName, c.latestScreenshot, 'square')}" draggable="false">`;
         }).join('')}${Array(Math.max(0, 4 - thumbChildren.length)).fill('<div class="mini-placeholder"></div>').join('')}</div>`;
       }
+    }
+
+    const infoHtml = `
+      <div class="card-info">
+        <div class="card-main">
+          ${p.synthetic ? renderGroupNameEditor(p, 'card') : `<div class="card-name">${escHtml(formatProjectLabel(p.name))}</div>`}
+          <div class="card-subtitle">${p.synthetic ? `${p.childCount} projects` : `${p.childCount} items`}</div>
+        </div>
+      </div>`;
+
+    if (currentAspect === 'wide') {
+      return `
+        <div class="${cardClasses.join(' ')}"${clickAttr}${dropAttrs}>
+          ${p.synthetic ? `<button class="group-dissolve-btn" title="Dissolve group" onclick="event.stopPropagation(); dissolveGroup('${escJs(getCollectionKey(p))}').catch(err => alert(err.message))">x</button>` : ''}
+          <div class="card-thumb">
+            ${thumbHtml}
+          </div>
+          ${infoHtml}
+        </div>`;
     }
 
     return `
@@ -1335,12 +1471,7 @@ function renderCard(p, onclick, options = {}) {
         ${p.synthetic ? `<button class="group-dissolve-btn" title="Dissolve group" onclick="event.stopPropagation(); dissolveGroup('${escJs(getCollectionKey(p))}').catch(err => alert(err.message))">x</button>` : ''}
         <div class="card-thumb">
           ${thumbHtml}
-          <div class="card-info">
-            <div class="card-main">
-              ${p.synthetic ? renderGroupNameEditor(p, 'card') : `<div class="card-name">${escHtml(formatProjectLabel(p.name))}</div>`}
-              <div class="card-subtitle">${p.synthetic ? `${p.childCount} projects` : `${p.childCount} items`}</div>
-            </div>
-          </div>
+          ${infoHtml}
         </div>
       </div>`;
   }
@@ -1348,18 +1479,31 @@ function renderCard(p, onclick, options = {}) {
   const apiName = (p.fullName || p.name).replace(/'/g, "\\'");
   const isRunning = status === 'running';
   const commitStamp = formatCommitStamp(p);
+  const infoHtml = `
+    <div class="card-info" onclick="handleProjectInfoTap(event, '${apiName}')">
+      <div class="card-main">
+        <div class="card-name">${escHtml(formatProjectLabel(p.name))}</div>
+      </div>
+      ${p.isGit ? `<div class="card-meta">${commitStamp ? `<div class="card-commit">${escHtml(commitStamp)}</div>` : ''}<div class="card-plus">+</div></div>` : ''}
+    </div>`;
+
+  if (currentAspect === 'wide') {
+    return `
+      <div class="${cardClasses.join(' ')}" data-name="${escHtml(apiName)}"${dragAttrs}${dropAttrs}>
+        <div class="card-thumb" onclick="handleProjectThumbClick('${apiName}', ${p.launchable ? 'true' : 'false'})">
+          ${thumbUrl ? `<img src="${thumbUrl}" alt="${escHtml(p.name)}" draggable="false">` : `<span class="placeholder">${icons[p.type] || '○'}</span>`}
+          <div class="status-dot card-status ${status}" ${isRunning ? `onclick="event.stopPropagation(); handleProjectStatusClick('${apiName}')" title="Click to stop"` : ''}></div>
+        </div>
+        ${infoHtml}
+      </div>`;
+  }
 
   return `
     <div class="${cardClasses.join(' ')}" data-name="${escHtml(apiName)}"${dragAttrs}${dropAttrs}>
       <div class="card-thumb" onclick="handleProjectThumbClick('${apiName}', ${p.launchable ? 'true' : 'false'})">
         ${thumbUrl ? `<img src="${thumbUrl}" alt="${escHtml(p.name)}" draggable="false">` : `<span class="placeholder">${icons[p.type] || '○'}</span>`}
         <div class="status-dot card-status ${status}" ${isRunning ? `onclick="event.stopPropagation(); handleProjectStatusClick('${apiName}')" title="Click to stop"` : ''}></div>
-        <div class="card-info" onclick="handleProjectInfoTap(event, '${apiName}')">
-          <div class="card-main">
-            <div class="card-name">${escHtml(formatProjectLabel(p.name))}</div>
-          </div>
-          ${p.isGit ? `<div class="card-meta">${commitStamp ? `<div class="card-commit">${escHtml(commitStamp)}</div>` : ''}<div class="card-plus">+</div></div>` : ''}
-        </div>
+        ${infoHtml}
       </div>
     </div>`;
 }
@@ -1721,6 +1865,8 @@ function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&
 function escJs(s) { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 
 // --- Init ---
+applyAspectMode();
+updateAspectButton();
 updateSortButton();
 navigate('grid');
 bindExternalFolderDrop();
