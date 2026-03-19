@@ -2,8 +2,9 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const { scanProjects, syncLaunchJSON, readOverridesConfig, writeOverridesConfig, BASE_DIR } = require('./lib/scanner');
-const { getVersionHistory, getCurrentCommit } = require('./lib/git');
+const { getVersionHistory, getCurrentCommit, clearCurrentCommitCache } = require('./lib/git');
 const { startProject, stopProject, getStatus, getLogs, getAllStatuses, sseClients, broadcast, startPortPoll } = require('./lib/processes');
+const { probeLocalServer } = require('./lib/local-server');
 const { captureScreenshot, getScreenshots, getLatestScreenshot, getScreenshotPath, listCandidateImages, setPinnedScreenshotFromFile } = require('./lib/screenshots');
 const { crawlAll, getCrawlStatus } = require('./lib/crawler');
 
@@ -18,6 +19,16 @@ app.use((req, res, next) => {
 app.use(express.json());
 
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
+app.get('/api/launch/probe', async (req, res) => {
+  const port = Number.parseInt(String(req.query.port || ''), 10);
+  const protocol = String(req.query.protocol || 'http');
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    return res.status(400).json({ ok: false, error: 'Invalid port' });
+  }
+  const ready = await probeLocalServer(port, protocol, 1500);
+  res.json({ ok: true, ready });
+});
 
 app.get('/launch/:name(*)', (req, res) => {
   const name = decodeURIComponent(req.params.name);
@@ -68,74 +79,106 @@ app.get('/launch/:name(*)', (req, res) => {
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
-    .shell {
-      width: min(420px, calc(100vw - 40px));
-      border: 1px solid var(--border);
-      border-radius: 18px;
-      background: var(--surface);
-      padding: 28px 26px;
-      box-shadow: 0 22px 80px rgba(0,0,0,0.28);
+    .launch-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
     }
-    .eyebrow {
-      margin-bottom: 8px;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text2);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-    h1 {
-      margin: 0 0 10px;
-      font-size: 24px;
-      line-height: 1.15;
-    }
-    p {
-      margin: 0;
-      color: var(--text2);
-      line-height: 1.45;
-      font-size: 14px;
-    }
-    .spinner {
-      width: 28px;
-      height: 28px;
-      margin-bottom: 18px;
+    .indicator {
+      width: 8px;
+      height: 8px;
       border-radius: 999px;
-      border: 3px solid color-mix(in srgb, var(--border) 65%, transparent);
-      border-top-color: var(--accent);
-      animation: spin 0.7s linear infinite;
+      background: #fff;
+      animation: pulse 1.9s ease-in-out infinite;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      font-weight: 500;
+      line-height: 1;
+      color: #111;
     }
-    .error { color: var(--red); }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .status {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    body.failed {
+      background: #fff;
+    }
+    body.failed .indicator {
+      width: 16px;
+      height: 16px;
+      background: transparent;
+      animation: none;
+    }
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(0.78);
+        opacity: 0.38;
+      }
+      50% {
+        transform: scale(1.06);
+        opacity: 1;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="shell">
-    <div class="spinner"></div>
-    <div class="eyebrow">Launching</div>
-    <h1>${escapedLabel}</h1>
-    <p id="status">Starting app...</p>
+  <div class="launch-state" aria-live="polite">
+    <div class="indicator" id="indicator" aria-hidden="true"></div>
+    <p class="status" id="status">Starting ${escapedLabel}…</p>
   </div>
   <script>
     (async () => {
+      const indicator = document.getElementById('indicator');
       const status = document.getElementById('status');
+      const fail = () => {
+        document.body.classList.add('failed');
+        indicator.textContent = '×';
+        status.textContent = 'Couldn\\'t connect.';
+      };
+      const waitForReady = async (port, protocol) => {
+        const deadline = Date.now() + 8000;
+        while (Date.now() < deadline) {
+          try {
+            const probe = await fetch('/api/launch/probe?port=' + encodeURIComponent(port) + '&protocol=' + encodeURIComponent(protocol), {
+              cache: 'no-store',
+            });
+            const data = await probe.json();
+            if (data.ready) return true;
+          } catch {}
+          await new Promise(resolve => setTimeout(resolve, 400));
+        }
+        return false;
+      };
       try {
         const res = await fetch('/api/projects/' + encodeURIComponent(${escapedName}) + '/start', { method: 'POST' });
         const data = await res.json();
         if (data.ok && data.port) {
           const protocol = data.protocol || ${defaultProtocol};
+          const ready = await waitForReady(data.port, protocol);
+          if (!ready) {
+            fail();
+            return;
+          }
           window.location.replace(protocol + '://localhost:' + data.port);
           return;
         }
         if (data.ok && data.nativeApp) {
-          status.textContent = 'Native app launched.';
+          status.textContent = 'Opened.';
           setTimeout(() => window.close(), 400);
           return;
         }
-        status.textContent = data.error || 'Failed to launch.';
-        status.classList.add('error');
+        fail();
       } catch (err) {
-        status.textContent = err.message || 'Failed to launch.';
-        status.classList.add('error');
+        fail();
       }
     })();
   </script>
@@ -160,6 +203,7 @@ function getProjects() {
 function invalidateProjectCache() {
   cachedProjects = null;
   cacheTime = 0;
+  clearCurrentCommitCache();
 }
 
 function getProjectKey(project) {
@@ -605,6 +649,8 @@ app.get('/api/status', (req, res) => {
 
 app.listen(PORT, () => {
   const projects = scanProjects();
+  cachedProjects = projects;
+  cacheTime = Date.now();
   const totalChildren = projects.reduce((n, p) => n + (p.children?.length || 0), 0);
   console.log(`Project Launcher running at http://localhost:${PORT}`);
   console.log(`Found ${projects.length} projects + ${totalChildren} sub-projects`);
@@ -629,8 +675,9 @@ app.listen(PORT, () => {
 
   setInterval(() => {
     console.log('[periodic] Checking for new screenshots needed...');
-    cachedProjects = null;
-    cacheTime = 0;
-    crawlAll(scanProjects());
+    const refreshed = scanProjects();
+    cachedProjects = refreshed;
+    cacheTime = Date.now();
+    crawlAll(refreshed);
   }, 10 * 60 * 1000);
 });

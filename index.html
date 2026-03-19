@@ -20,6 +20,7 @@
     --radius: 12px;
     --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --tile-min: 260px;
   }
   @media (prefers-color-scheme: light) {
     :root { --bg: #f5f5f7; --surface: #fff; --surface2: #f0f0f0; --border: #ddd; --text: #1d1d1f; --text2: #86868b; }
@@ -33,52 +34,120 @@
     display: flex; align-items: center; gap: 16px; backdrop-filter: blur(20px);
   }
   .topbar h1 { font-size: 18px; font-weight: 600; white-space: nowrap; }
-  .breadcrumb { display: flex; align-items: center; gap: 4px; }
+  .breadcrumb { display: flex; align-items: center; gap: 4px; min-width: 0; }
   .breadcrumb a { color: var(--accent); text-decoration: none; font-size: 18px; font-weight: 600; cursor: pointer; }
   .breadcrumb a:hover { text-decoration: underline; }
   .breadcrumb .sep { color: var(--text2); font-size: 14px; margin: 0 2px; }
   .breadcrumb .current-wrap { display: inline-flex; align-items: center; gap: 6px; }
   .breadcrumb .current { color: var(--text); font-size: 18px; font-weight: 600; }
 
-  .search { flex: 1; max-width: 400px; height: 32px; padding: 0 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; outline: none; }
+  .search { flex: 1 1 240px; max-width: 400px; min-width: 0; height: 32px; padding: 0 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; outline: none; }
   .search:focus { border-color: var(--accent); }
-  .filters { display: flex; gap: 6px; align-items: center; }
+  .filters { display: flex; gap: 6px; align-items: center; min-width: 0; }
   .filter-chip { height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; }
   .filter-chip.active { background: var(--surface2); color: var(--text); border-color: var(--text2); }
   .filter-chip:hover:not(.active) { border-color: var(--text2); }
-  .topbar-right { display: flex; gap: 6px; margin-left: auto; align-items: center; }
+  .topbar-right { display: flex; gap: 6px; margin-left: auto; align-items: center; flex-shrink: 0; }
   .sort-btn { height: 32px; background: none; border: 1px solid var(--border); color: var(--text2); padding: 0 10px; border-radius: 8px; cursor: pointer; font-size: 11px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; }
   .sort-btn:hover { border-color: var(--text); color: var(--text); }
   .stop-all-btn { height: 32px; background: none; border: 1px solid var(--border); color: var(--red); padding: 0 10px; border-radius: 8px; cursor: pointer; font-size: 11px; opacity: 0.7; display: inline-flex; align-items: center; justify-content: center; }
   .stop-all-btn:hover { border-color: var(--red); opacity: 1; }
 
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; padding: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr)); gap: 16px; padding: 24px; }
   .section-label { grid-column: 1 / -1; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text2); padding: 8px 0 0; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: transform 0.15s, box-shadow 0.15s; position: relative; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: transform 0.15s, box-shadow 0.15s; position: relative; aspect-ratio: 1 / 1; }
   .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
   .card.draggable { cursor: grab; }
   .card.dragging { opacity: 0.58; transform: scale(0.98); box-shadow: none; }
   .card.drop-active { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
   .card.draggable, .card[data-drop-type] { touch-action: none; }
   body.dragging-project, body.dragging-project * { user-select: none; cursor: grabbing !important; }
-  .card-thumb { width: 100%; height: 200px; background: var(--surface2); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; cursor: pointer; }
+  .card-thumb { width: 100%; height: 100%; background: var(--surface2); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; cursor: pointer; }
   .card-thumb img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
   .card-thumb img, .mini-grid img { -webkit-user-drag: none; user-select: none; pointer-events: none; }
+  .card-thumb::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.08);
+    pointer-events: none;
+  }
+  .card:hover .card-thumb img { transform: scale(1.02); }
+  .card-thumb img { transition: transform 0.22s ease; }
   .card-thumb .placeholder { font-size: 48px; opacity: 0.3; }
-  .card-status { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--text2); box-shadow: 0 0 6px rgba(0,0,0,0.5); transition: background 0.15s, box-shadow 0.15s, transform 0.15s; }
+  .card-status {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--text2);
+    box-shadow: 0 0 6px rgba(0,0,0,0.5);
+    transition: background 0.15s, box-shadow 0.15s, transform 0.15s;
+  }
+  .card-status::before {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.28);
+    backdrop-filter: blur(10px);
+    z-index: -1;
+  }
   .card-status.running { background: var(--green); box-shadow: 0 0 8px var(--green); cursor: pointer; }
   .card-status.running:hover { background: var(--red); box-shadow: 0 0 8px var(--red); transform: scale(1.4); }
   .card-status.starting { background: var(--orange); }
   .card-status.error { background: var(--red); }
-  .card-info { padding: 7px 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
-  .card-info:hover { background: var(--surface2); }
-  .card-main { display: flex; align-items: center; gap: 6px; min-width: 0; }
-  .card-name { font-size: 14px; font-weight: 600; }
+  .card-info {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 18px 10px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.1) 32%, rgba(0,0,0,0.82) 100%);
+    color: #fff;
+  }
+  .card-info:hover { background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.12) 28%, rgba(0,0,0,0.88) 100%); }
+  .card-main { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+  .card-name {
+    font-size: 14px;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.28);
+    backdrop-filter: blur(10px);
+  }
   .card-main .card-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .card-meta { display: flex; align-items: center; gap: 8px; }
-  .card-commit { font-size: 10px; color: var(--text2); opacity: 0.8; font-family: var(--mono); white-space: nowrap; }
-  .card-plus { font-size: 16px; color: var(--text2); opacity: 0.4; transition: opacity 0.15s; }
-  .card-info:hover .card-plus { opacity: 1; }
+  .card-subtitle {
+    font-size: 10px;
+    color: rgba(255,255,255,0.74);
+    letter-spacing: 0.02em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.18);
+    backdrop-filter: blur(10px);
+  }
+  .card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.28);
+    backdrop-filter: blur(10px);
+  }
+  .card-commit { font-size: 10px; color: rgba(255,255,255,0.76); opacity: 0.95; font-family: var(--mono); white-space: nowrap; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+  .card-plus { font-size: 16px; color: rgba(255,255,255,0.62); opacity: 0.9; transition: opacity 0.15s; text-shadow: 0 1px 2px rgba(0,0,0,0.3); }
+  .card-info:hover .card-plus { opacity: 1; color: #fff; }
   .rename-btn {
     border: 1px solid var(--border);
     background: transparent;
@@ -101,8 +170,9 @@
     width: 24px;
     height: 24px;
     border-radius: 999px;
-    border: 1px solid rgba(255,255,255,0.12);
-    background: rgba(0,0,0,0.22);
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.22);
+    backdrop-filter: blur(10px);
     color: var(--text2);
     opacity: 0.68;
     cursor: pointer;
@@ -117,7 +187,7 @@
     opacity: 1;
     color: var(--red);
     border-color: rgba(255,69,58,0.38);
-    background: rgba(0,0,0,0.4);
+    background: rgba(255,255,255,0.34);
   }
   .group-name-trigger {
     cursor: text;
@@ -207,7 +277,7 @@
   .timeline-item:hover { border-color: var(--accent); }
   .timeline-item.current { border-color: var(--green); border-width: 2px; }
   .timeline-item.tag { border-color: var(--yellow); }
-  .timeline-thumb { width: 100%; height: 120px; background: var(--surface2); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .timeline-thumb { width: 100%; aspect-ratio: 1 / 1; background: var(--surface2); display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .timeline-thumb img { width: 100%; height: 100%; object-fit: cover; }
   .timeline-thumb .no-capture { font-size: 11px; color: var(--text2); text-align: center; padding: 8px; }
   .timeline-info { padding: 10px 12px; }
@@ -272,6 +342,69 @@
   .crawl-progress { flex: 1; max-width: 300px; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
   .crawl-progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
   .crawl-active { color: var(--accent); font-weight: 500; }
+
+  @media (max-width: 900px) {
+    :root { --tile-min: 220px; }
+    .grid { padding: 18px; gap: 14px; }
+    .detail { padding: 18px; }
+    .detail-header { flex-direction: column; }
+    .detail-controls { width: 100%; }
+    .detail-screenshot { width: 100%; aspect-ratio: 1 / 1; min-height: 0; }
+    .detail-screenshot img { width: 100%; height: 100%; object-fit: contain; }
+  }
+
+  @media (max-width: 720px) {
+    :root { --tile-min: 168px; }
+    .topbar {
+      gap: 10px;
+      padding: 12px;
+      flex-wrap: wrap;
+      align-items: stretch;
+    }
+    .breadcrumb {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+    .breadcrumb a,
+    .breadcrumb .current {
+      font-size: 16px;
+    }
+    .filters {
+      order: 2;
+      flex: 1 1 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+    .filters::-webkit-scrollbar { display: none; }
+    .search {
+      order: 3;
+      flex: 1 1 0;
+      max-width: none;
+    }
+    .topbar-right {
+      order: 4;
+      margin-left: 0;
+    }
+    .grid {
+      padding: 14px;
+      gap: 12px;
+    }
+    .section-label { padding-top: 2px; }
+    .card-info {
+      padding: 14px 8px 8px;
+      gap: 8px;
+    }
+    .card-name { font-size: 13px; }
+    .card-subtitle,
+    .card-commit { font-size: 9px; }
+    .card-meta { gap: 6px; padding: 3px 7px; }
+    .empty,
+    .loading { padding: 56px 16px; }
+    .timeline-item { width: 170px; }
+  }
 </style>
 </head>
 <body>
@@ -329,6 +462,7 @@ let statuses = {};
 let navStack = []; // ['grid'] or ['grid', 'World Code'] or ['grid', 'World Code', 'festival globe']
 let rootDirectoryName = 'Directory';
 let externalDropDepth = 0;
+let projectsLoadPromise = null;
 
 // --- SSE ---
 const evtSource = new EventSource('/api/status');
@@ -381,13 +515,24 @@ evtSource.addEventListener('crawl', (e) => {
 
 // --- Data ---
 async function loadProjects(force = false) {
-  if (force) await fetch('/api/projects/refresh', { method: 'POST' });
-  const res = await fetch('/api/projects');
-  projects = await res.json();
-  if (currentCollection) {
-    renderCollectionGrid();
-  } else if (!currentProject) {
-    renderGrid();
+  if (projectsLoadPromise && !force) return projectsLoadPromise;
+
+  projectsLoadPromise = (async () => {
+    if (force) await fetch('/api/projects/refresh', { method: 'POST' });
+    const res = await fetch('/api/projects', { cache: 'no-store' });
+    projects = await res.json();
+    if (currentCollection) {
+      renderCollectionGrid();
+    } else if (!currentProject) {
+      renderGrid();
+    }
+    return projects;
+  })();
+
+  try {
+    return await projectsLoadPromise;
+  } finally {
+    projectsLoadPromise = null;
   }
 }
 async function loadMeta() {
@@ -398,6 +543,20 @@ async function loadMeta() {
   } catch {}
   document.title = `${rootDirectoryName}/`;
   renderBreadcrumb();
+}
+
+function scheduleBootstrapReloads() {
+  const ensureProjectsLoaded = () => {
+    if (projects.length === 0 && !currentProject) {
+      loadProjects().catch(() => {});
+    }
+  };
+  const retryDelays = [1200, 3200, 6200];
+  retryDelays.forEach(delay => {
+    setTimeout(ensureProjectsLoaded, delay);
+  });
+  window.addEventListener('load', ensureProjectsLoaded, { once: true });
+  window.addEventListener('pageshow', ensureProjectsLoaded, { once: true });
 }
 
 // --- Navigation ---
@@ -945,12 +1104,10 @@ function clearDragState() {
 
 function handleCardPointerDown(event) {
   if (event.button !== 0) return;
+  if (event.target?.closest?.('.card-info, .group-dissolve-btn, .inline-edit, button, input, a')) return;
   const card = event.currentTarget;
   const name = card.dataset.name || '';
   if (!name) return;
-  if (typeof card.setPointerCapture === 'function') {
-    try { card.setPointerCapture(event.pointerId); } catch {}
-  }
   dragState = {
     pointerId: event.pointerId,
     name,
@@ -971,6 +1128,9 @@ function handleGlobalPointerMove(event) {
   if (!dragState.dragging) {
     if (Math.hypot(dx, dy) < 8) return;
     dragState.dragging = true;
+    if (typeof dragState.card.setPointerCapture === 'function' && dragState.pointerId != null) {
+      try { dragState.card.setPointerCapture(dragState.pointerId); } catch {}
+    }
     dragState.card.classList.add('dragging');
     document.body.classList.add('dragging-project');
   }
@@ -1112,6 +1272,11 @@ function handleProjectInfoClick(name) {
   showDetail(name);
 }
 
+function handleProjectInfoTap(event, name) {
+  if (event) event.stopPropagation();
+  handleProjectInfoClick(name);
+}
+
 function handleProjectStatusClick(name) {
   suppressProjectCardClick();
   stopFromCard(name);
@@ -1145,13 +1310,18 @@ function renderCard(p, onclick, options = {}) {
     const children = p.children || [];
     let thumbHtml = `<span class="placeholder">▣</span>`;
     if (p.synthetic) {
-      const latestChild = [...children].sort((a, b) => getSortTimestamp(b) - getSortTimestamp(a))[0];
+      const latestChild = [...children]
+        .filter(child => child.latestScreenshot)
+        .sort((a, b) => getSortTimestamp(b) - getSortTimestamp(a))[0];
       if (latestChild?.latestScreenshot) {
         const cName = latestChild.fullName || latestChild.name;
         thumbHtml = `<img src="/screenshots/${encodeURIComponent(cName)}/${latestChild.latestScreenshot.thumb}" draggable="false">`;
       }
     } else {
-      const thumbChildren = children.filter(c => c.latestScreenshot).slice(0, 4);
+      const thumbChildren = [...children]
+        .filter(c => c.latestScreenshot)
+        .sort((a, b) => getSortTimestamp(b) - getSortTimestamp(a))
+        .slice(0, 4);
       if (thumbChildren.length > 0) {
         thumbHtml = `<div class="mini-grid">${thumbChildren.map(c => {
           const cName = c.fullName || c.name;
@@ -1165,12 +1335,12 @@ function renderCard(p, onclick, options = {}) {
         ${p.synthetic ? `<button class="group-dissolve-btn" title="Dissolve group" onclick="event.stopPropagation(); dissolveGroup('${escJs(getCollectionKey(p))}').catch(err => alert(err.message))">x</button>` : ''}
         <div class="card-thumb">
           ${thumbHtml}
-        </div>
-        <div class="card-info">
-          <div class="card-main">
-            ${p.synthetic ? renderGroupNameEditor(p, 'card') : `<div class="card-name">${escHtml(formatProjectLabel(p.name))}</div>`}
+          <div class="card-info">
+            <div class="card-main">
+              ${p.synthetic ? renderGroupNameEditor(p, 'card') : `<div class="card-name">${escHtml(formatProjectLabel(p.name))}</div>`}
+              <div class="card-subtitle">${p.synthetic ? `${p.childCount} projects` : `${p.childCount} items`}</div>
+            </div>
           </div>
-          <div style="font-size:11px;color:var(--text2)">${p.synthetic ? `${p.childCount} projects` : `${p.childCount} items`}</div>
         </div>
       </div>`;
   }
@@ -1180,16 +1350,16 @@ function renderCard(p, onclick, options = {}) {
   const commitStamp = formatCommitStamp(p);
 
   return `
-    <div class="${cardClasses.join(' ')}" data-name="${escHtml(apiName)}"${dragAttrs}${dropAttrs} onclick="handleProjectCardClick('${apiName}')">
+    <div class="${cardClasses.join(' ')}" data-name="${escHtml(apiName)}"${dragAttrs}${dropAttrs}>
       <div class="card-thumb" onclick="handleProjectThumbClick('${apiName}', ${p.launchable ? 'true' : 'false'})">
         ${thumbUrl ? `<img src="${thumbUrl}" alt="${escHtml(p.name)}" draggable="false">` : `<span class="placeholder">${icons[p.type] || '○'}</span>`}
-        <div class="status-dot card-status ${status}" ${isRunning ? `onclick="handleProjectStatusClick('${apiName}')" title="Click to stop"` : ''}></div>
-      </div>
-      <div class="card-info" onclick="handleProjectInfoClick('${apiName}')">
-        <div class="card-main">
-          <div class="card-name">${escHtml(formatProjectLabel(p.name))}</div>
+        <div class="status-dot card-status ${status}" ${isRunning ? `onclick="event.stopPropagation(); handleProjectStatusClick('${apiName}')" title="Click to stop"` : ''}></div>
+        <div class="card-info" onclick="handleProjectInfoTap(event, '${apiName}')">
+          <div class="card-main">
+            <div class="card-name">${escHtml(formatProjectLabel(p.name))}</div>
+          </div>
+          ${p.isGit ? `<div class="card-meta">${commitStamp ? `<div class="card-commit">${escHtml(commitStamp)}</div>` : ''}<div class="card-plus">+</div></div>` : ''}
         </div>
-        ${p.isGit ? `<div class="card-meta">${commitStamp ? `<div class="card-commit">${escHtml(commitStamp)}</div>` : ''}<div class="card-plus">+</div></div>` : ''}
       </div>
     </div>`;
 }
@@ -1555,7 +1725,8 @@ updateSortButton();
 navigate('grid');
 bindExternalFolderDrop();
 loadMeta();
-loadProjects();
+loadProjects().catch(() => {});
+scheduleBootstrapReloads();
 </script>
 </body>
 </html>
