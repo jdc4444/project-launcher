@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Project Launcher</title>
+<title>Directory/</title>
 <style>
   :root {
     --bg: #0d0d0d;
@@ -37,13 +37,14 @@
   .breadcrumb a { color: var(--accent); text-decoration: none; font-size: 18px; font-weight: 600; cursor: pointer; }
   .breadcrumb a:hover { text-decoration: underline; }
   .breadcrumb .sep { color: var(--text2); font-size: 14px; margin: 0 2px; }
+  .breadcrumb .current-wrap { display: inline-flex; align-items: center; gap: 6px; }
   .breadcrumb .current { color: var(--text); font-size: 18px; font-weight: 600; }
 
   .search { flex: 1; max-width: 400px; height: 32px; padding: 0 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; outline: none; }
   .search:focus { border-color: var(--accent); }
   .filters { display: flex; gap: 6px; align-items: center; }
   .filter-chip { height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; }
-  .filter-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .filter-chip.active { background: var(--surface2); color: var(--text); border-color: var(--text2); }
   .filter-chip:hover:not(.active) { border-color: var(--text2); }
   .topbar-right { display: flex; gap: 6px; margin-left: auto; align-items: center; }
   .sort-btn { height: 32px; background: none; border: 1px solid var(--border); color: var(--text2); padding: 0 10px; border-radius: 8px; cursor: pointer; font-size: 11px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; }
@@ -55,8 +56,14 @@
   .section-label { grid-column: 1 / -1; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text2); padding: 8px 0 0; }
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: transform 0.15s, box-shadow 0.15s; position: relative; }
   .card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+  .card.draggable { cursor: grab; }
+  .card.dragging { opacity: 0.58; transform: scale(0.98); box-shadow: none; }
+  .card.drop-active { border-color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
+  .card.draggable, .card[data-drop-type] { touch-action: none; }
+  body.dragging-project, body.dragging-project * { user-select: none; cursor: grabbing !important; }
   .card-thumb { width: 100%; height: 200px; background: var(--surface2); display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; cursor: pointer; }
   .card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .card-thumb img, .mini-grid img { -webkit-user-drag: none; user-select: none; }
   .card-thumb .placeholder { font-size: 48px; opacity: 0.3; }
   .card-status { position: absolute; top: 10px; right: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--text2); box-shadow: 0 0 6px rgba(0,0,0,0.5); transition: background 0.15s, box-shadow 0.15s, transform 0.15s; }
   .card-status.running { background: var(--green); box-shadow: 0 0 8px var(--green); cursor: pointer; }
@@ -65,11 +72,78 @@
   .card-status.error { background: var(--red); }
   .card-info { padding: 7px 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
   .card-info:hover { background: var(--surface2); }
+  .card-main { display: flex; align-items: center; gap: 6px; min-width: 0; }
   .card-name { font-size: 14px; font-weight: 600; }
+  .card-main .card-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .card-meta { display: flex; align-items: center; gap: 8px; }
   .card-commit { font-size: 10px; color: var(--text2); opacity: 0.8; font-family: var(--mono); white-space: nowrap; }
   .card-plus { font-size: 16px; color: var(--text2); opacity: 0.4; transition: opacity 0.15s; }
   .card-info:hover .card-plus { opacity: 1; }
+  .rename-btn {
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text2);
+    font-size: 10px;
+    line-height: 1;
+    border-radius: 6px;
+    padding: 4px 6px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .rename-btn:hover { border-color: var(--text2); color: var(--text); }
+  .dissolve-btn { color: var(--red); }
+  .dissolve-btn:hover { border-color: var(--red); color: var(--red); }
+  .group-dissolve-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 3;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(0,0,0,0.22);
+    color: var(--text2);
+    opacity: 0.68;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+    transition: opacity 0.15s, color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .group-dissolve-btn:hover {
+    opacity: 1;
+    color: var(--red);
+    border-color: rgba(255,69,58,0.38);
+    background: rgba(0,0,0,0.4);
+  }
+  .group-name-trigger {
+    cursor: text;
+    transition: color 0.15s;
+  }
+  .group-name-trigger:hover { color: var(--text); }
+  .inline-edit { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+  .inline-edit-input {
+    min-width: 0;
+    width: 170px;
+    height: 28px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 13px;
+    outline: none;
+  }
+  .inline-edit-input:focus { border-color: var(--text2); }
+  .breadcrumb .inline-edit-input {
+    height: 32px;
+    width: 220px;
+    font-size: 16px;
+    font-weight: 600;
+  }
 
   .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
   .badge.node { background: #2d5016; color: #6cc644; }
@@ -170,16 +244,18 @@
 
 <div class="topbar">
   <div class="breadcrumb" id="breadcrumb">
-    <span class="current">Project Launcher</span>
+    <span class="current">Directory/</span>
   </div>
-  <input class="search" id="search" type="text" placeholder="Search projects..." oninput="filterProjects()">
   <div class="filters" id="filters">
     <button class="filter-chip active" data-filter="all" onclick="setFilter('all', this)">All</button>
+    <button class="filter-chip" data-filter="folders" onclick="setFilter('folders', this)">Folders</button>
+    <button class="filter-chip" data-filter="groups" onclick="setFilter('groups', this)">Groups</button>
     <button class="filter-chip" data-filter="node" onclick="setFilter('node', this)">Node</button>
     <button class="filter-chip" data-filter="html" onclick="setFilter('html', this)">HTML</button>
     <button class="filter-chip" data-filter="python" onclick="setFilter('python', this)">Python</button>
     <button class="filter-chip" data-filter="utility" onclick="setFilter('utility', this)">Utility</button>
   </div>
+  <input class="search" id="search" type="text" placeholder="Search projects..." oninput="filterProjects()">
   <div class="topbar-right">
     <button class="sort-btn" id="sortBtn" onclick="cycleSort()" title="Change sort">↓</button>
     <button class="stop-all-btn" id="stopAllBtn" onclick="stopAll()" title="Stop all">&#9632;</button>
@@ -203,8 +279,14 @@ let currentFilter = 'all';
 let currentSort = 'recent_desc'; // 'recent_desc', 'recent_asc', 'alpha'
 let currentProject = null;
 let currentCollection = null; // When viewing inside a collection
+let dragState = null;
+let activeDropCard = null;
+let suppressClicksUntil = 0;
+let editingGroupKey = null;
+let editingGroupDraft = '';
 let statuses = {};
 let navStack = []; // ['grid'] or ['grid', 'World Code'] or ['grid', 'World Code', 'festival globe']
+let rootDirectoryName = 'Directory';
 
 // --- SSE ---
 const evtSource = new EventSource('/api/status');
@@ -266,6 +348,15 @@ async function loadProjects(force = false) {
     renderGrid();
   }
 }
+async function loadMeta() {
+  try {
+    const res = await fetch('/api/meta');
+    const meta = await res.json();
+    rootDirectoryName = meta.rootName || 'Directory';
+  } catch {}
+  document.title = `${rootDirectoryName}/`;
+  renderBreadcrumb();
+}
 
 // --- Navigation ---
 function navigate(view, data) {
@@ -285,7 +376,7 @@ function navigate(view, data) {
     renderBreadcrumb();
     renderGrid();
   } else if (view === 'collection') {
-    navStack = ['grid', data.name];
+    navStack = ['grid', getCollectionKey(data)];
     currentProject = null;
     currentCollection = data;
     grid.style.display = 'grid';
@@ -313,8 +404,8 @@ function goBack() {
     navigate('grid');
   } else {
     // Back to collection
-    const collName = navStack[1];
-    const coll = projects.find(p => p.name === collName);
+    const collKey = navStack[1];
+    const coll = findCollectionByKey(collKey);
     if (coll) {
       navStack = ['grid'];
       navigate('collection', coll);
@@ -326,18 +417,26 @@ function goBack() {
 
 function renderBreadcrumb() {
   const bc = document.getElementById('breadcrumb');
+  const rootLabel = `${rootDirectoryName}/`;
   if (navStack.length <= 1) {
-    bc.innerHTML = '<span class="current">Project Launcher</span>';
+    bc.innerHTML = `<span class="current">${escHtml(rootLabel)}</span>`;
   } else {
-    let html = '<a onclick="navigate(\'grid\')">Project Launcher</a>';
-    for (let i = 1; i < navStack.length; i++) {
-      html += '<span class="sep">/</span>';
-      if (i === navStack.length - 1) {
-        html += `<span class="current">${escHtml(navStack[i])}</span>`;
+    let html = `<a onclick="navigate('grid')">${escHtml(rootLabel)}</a>`;
+    if (currentCollection) {
+      const collectionLabel = getCollectionLabel(currentCollection);
+      if (currentProject && currentCollection.synthetic) {
+        html += `<span class="current-wrap">${renderGroupNameEditor(currentCollection, 'header-link')}</span>`;
+      } else if (currentProject) {
+        html += `<a onclick="goBack()">${escHtml(collectionLabel)}</a>`;
+      } else if (currentCollection.synthetic) {
+        html += `<span class="current-wrap">${renderGroupNameEditor(currentCollection, 'header')}</span>`;
       } else {
-        const collName = navStack[i];
-        html += `<a onclick="goBack()">${escHtml(collName)}</a>`;
+        html += `<span class="current">${escHtml(collectionLabel)}</span>`;
       }
+    }
+    if (currentProject) {
+      if (currentCollection) html += '<span class="sep">/</span>';
+      html += `<span class="current">${escHtml(formatProjectLabel(currentProject.name))}</span>`;
     }
     bc.innerHTML = html;
   }
@@ -349,6 +448,13 @@ document.addEventListener('keydown', e => {
     else goBack();
   }
 });
+
+document.addEventListener('click', e => {
+  if (Date.now() < suppressClicksUntil) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+}, true);
 
 // --- Filters ---
 function setFilter(filter, btn) {
@@ -362,17 +468,171 @@ function filterProjects() {
   if (currentCollection) renderCollectionGrid();
   else renderGrid();
 }
-function applyFilter(list) {
-  if (currentFilter === 'utility') {
-    list = list.filter(p => p.category === 'utility');
-  } else if (currentFilter === 'all') {
-    list = list.filter(p => p.category !== 'utility');
-  } else {
-    list = list.filter(p => p.category !== 'utility' && (p.type === currentFilter || (currentFilter === 'node' && p.framework === 'vite')));
+function getSearchQuery() {
+  return document.getElementById('search').value.trim().toLowerCase();
+}
+function matchesSearch(item, query = getSearchQuery()) {
+  if (!query) return true;
+  return item.name.toLowerCase().includes(query) || (item.framework || '').toLowerCase().includes(query);
+}
+function matchesProjectFilter(item, options = {}) {
+  const query = options.query ?? getSearchQuery();
+  const includeCollections = options.includeCollections === true;
+  if (item.type === 'collection') {
+    if (!includeCollections) return false;
+    if (currentFilter === 'utility') return false;
+    return item.category !== 'utility' && matchesSearch(item, query);
   }
-  const q = document.getElementById('search').value.toLowerCase();
-  if (q) list = list.filter(p => p.name.toLowerCase().includes(q) || (p.framework || '').includes(q));
-  return list;
+  if (currentFilter === 'utility') {
+    return item.category === 'utility' && matchesSearch(item, query);
+  }
+  if (currentFilter === 'all' || currentFilter === 'folders' || currentFilter === 'groups') {
+    return item.category !== 'utility' && matchesSearch(item, query);
+  }
+  return item.category !== 'utility'
+    && (item.type === currentFilter || (currentFilter === 'node' && item.framework === 'vite'))
+    && matchesSearch(item, query);
+}
+function applyFilter(list, options = {}) {
+  const query = options.query ?? getSearchQuery();
+  return list.filter(item => matchesProjectFilter(item, { ...options, query }));
+}
+function getVisibleCollections(collections) {
+  const query = getSearchQuery();
+  return sortProjects(collections.map(collection => {
+    const filteredChildren = sortProjects(applyFilter(collection.children || [], { query }));
+    const nameMatch = matchesSearch(collection, query);
+    if (!nameMatch && filteredChildren.length === 0) return null;
+    const displayChildren = filteredChildren.length > 0 || !query ? filteredChildren : (collection.children || []);
+    return {
+      ...collection,
+      children: displayChildren,
+      childCount: displayChildren.length || collection.childCount || 0,
+      launchableChildren: displayChildren.filter(child => child.launchable).length,
+    };
+  }).filter(Boolean));
+}
+function formatProjectLabel(name) {
+  return String(name || '').replace(/[-_]/g, ' ');
+}
+function getProjectKey(project) {
+  return project?.fullName || project?.name || '';
+}
+function getCollectionKey(collection) {
+  if (!collection) return '';
+  return collection.synthetic ? (collection.targetName || collection.name) : collection.name;
+}
+function getCollectionLabel(collection) {
+  if (!collection) return '';
+  if (collection.synthetic && collection.name === (collection.targetName || collection.name)) {
+    return formatProjectLabel(collection.name);
+  }
+  return collection.name;
+}
+function findCollectionByKey(key) {
+  return projects.find(project =>
+    project.type === 'collection'
+    && (project.synthetic ? (project.targetName || project.name) : project.name) === key
+  ) || null;
+}
+function renderCurrentView() {
+  renderBreadcrumb();
+  if (currentProject) return;
+  if (currentCollection) renderCollectionGrid();
+  else renderGrid();
+  focusGroupEditor();
+}
+function startGroupEdit(targetName) {
+  const group = findCollectionByKey(targetName);
+  if (!group) return;
+  editingGroupKey = targetName;
+  editingGroupDraft = group.name;
+  renderCurrentView();
+}
+function updateGroupEditValue(value) {
+  editingGroupDraft = value;
+}
+function cancelGroupEdit() {
+  editingGroupKey = null;
+  editingGroupDraft = '';
+  renderCurrentView();
+}
+function focusGroupEditor() {
+  if (!editingGroupKey) return;
+  requestAnimationFrame(() => {
+    const input = [...document.querySelectorAll('[data-group-input-key]')]
+      .find(el => el.dataset.groupInputKey === editingGroupKey);
+    if (input) {
+      input.focus();
+      input.select();
+    }
+  });
+}
+async function saveGroupEdit(targetName) {
+  const group = findCollectionByKey(targetName);
+  if (!group) {
+    cancelGroupEdit();
+    return;
+  }
+  const trimmed = editingGroupDraft.trim();
+  if (!trimmed) {
+    cancelGroupEdit();
+    return;
+  }
+  if (trimmed === group.name) {
+    cancelGroupEdit();
+    return;
+  }
+
+  const previousKey = editingGroupKey;
+  const previousDraft = editingGroupDraft;
+  editingGroupKey = null;
+  editingGroupDraft = '';
+
+  try {
+    await renameGroup(targetName, trimmed);
+  } catch (err) {
+    editingGroupKey = previousKey;
+    editingGroupDraft = previousDraft;
+    renderCurrentView();
+    alert(err.message);
+  }
+}
+function handleGroupEditKeydown(event, targetName) {
+  event.stopPropagation();
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    saveGroupEdit(targetName);
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    cancelGroupEdit();
+  }
+}
+function renderGroupNameEditor(collection, context = 'card') {
+  const groupKey = getCollectionKey(collection);
+  const isEditing = editingGroupKey === groupKey;
+  const displayName = getCollectionLabel(collection);
+
+  if (!isEditing) {
+    if (context === 'header-link') {
+      return `<a title="Click to go back. Double-click to rename." onclick="goBack()" ondblclick="event.preventDefault(); event.stopPropagation(); startGroupEdit('${escJs(groupKey)}')">${escHtml(displayName)}</a>`;
+    }
+    const labelClass = context === 'header' ? 'current' : 'card-name';
+    return `<span class="${labelClass} group-name-trigger" title="Click to rename group" onclick="event.stopPropagation(); startGroupEdit('${escJs(groupKey)}')">${escHtml(displayName)}</span>`;
+  }
+
+  return `<span class="inline-edit" onclick="event.stopPropagation()">
+    <input
+      class="inline-edit-input"
+      data-group-input-key="${escHtml(groupKey)}"
+      value="${escHtml(editingGroupDraft)}"
+      onclick="event.stopPropagation()"
+      oninput="updateGroupEditValue(this.value)"
+      onkeydown="handleGroupEditKeydown(event, '${escJs(groupKey)}')"
+    >
+    <button class="rename-btn" title="Save group name" onclick="event.stopPropagation(); saveGroupEdit('${escJs(groupKey)}')">save</button>
+    <button class="rename-btn" title="Cancel editing" onclick="event.stopPropagation(); cancelGroupEdit()">cancel</button>
+  </span>`;
 }
 function updateSortButton() {
   const btn = document.getElementById('sortBtn');
@@ -488,35 +748,232 @@ async function stopAll() {
   document.getElementById('stopAllBtn').innerHTML = '&#9632;';
 }
 
+function clearDropTargets() {
+  document.querySelectorAll('.card.drop-active').forEach(card => card.classList.remove('drop-active'));
+}
+
+function setActiveDropCard(card) {
+  if (activeDropCard === card) return;
+  if (activeDropCard) activeDropCard.classList.remove('drop-active');
+  activeDropCard = card || null;
+  if (activeDropCard) activeDropCard.classList.add('drop-active');
+}
+
+function clearDragState() {
+  if (dragState?.card) {
+    dragState.card.classList.remove('dragging');
+    if (typeof dragState.card.releasePointerCapture === 'function' && dragState.pointerId != null) {
+      try { dragState.card.releasePointerCapture(dragState.pointerId); } catch {}
+    }
+  }
+  dragState = null;
+  setActiveDropCard(null);
+  document.body.classList.remove('dragging-project');
+}
+
+function handleCardPointerDown(event) {
+  if (event.button !== 0) return;
+  const card = event.currentTarget;
+  const name = card.dataset.name || '';
+  if (!name) return;
+  event.preventDefault();
+  if (typeof card.setPointerCapture === 'function') {
+    try { card.setPointerCapture(event.pointerId); } catch {}
+  }
+  dragState = {
+    pointerId: event.pointerId,
+    name,
+    card,
+    lastTargetCard: card,
+    startX: event.clientX,
+    startY: event.clientY,
+    dragging: false,
+  };
+}
+
+function handleGlobalPointerMove(event) {
+  if (!dragState) return;
+  if (dragState.pointerId != null && event.pointerId != null && dragState.pointerId !== event.pointerId) return;
+  const dx = event.clientX - dragState.startX;
+  const dy = event.clientY - dragState.startY;
+
+  if (!dragState.dragging) {
+    if (Math.hypot(dx, dy) < 8) return;
+    dragState.dragging = true;
+    dragState.card.classList.add('dragging');
+    document.body.classList.add('dragging-project');
+  }
+
+  const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('.card[data-drop-type]');
+  if (!target) {
+    setActiveDropCard(null);
+    return;
+  }
+
+  const targetName = target.dataset.dropName;
+  const targetType = target.dataset.dropType;
+  if (!targetName || !targetType || targetName === dragState.name) {
+    setActiveDropCard(null);
+    return;
+  }
+
+  setActiveDropCard(target);
+}
+
+async function handleGlobalPointerUp(event) {
+  if (!dragState) return;
+  if (dragState.pointerId != null && event?.pointerId != null && dragState.pointerId !== event.pointerId) return;
+  const state = dragState;
+  const dropCard = activeDropCard;
+  const wasDragging = state.dragging;
+  clearDragState();
+
+  if (!wasDragging) return;
+  suppressClicksUntil = Date.now() + 250;
+
+  const targetName = dropCard?.dataset.dropName;
+  const targetType = dropCard?.dataset.dropType;
+  if (!targetName || !targetType || targetName === state.name) return;
+
+  try {
+    await groupProjectIntoTarget(state.name, targetName, targetType);
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+window.addEventListener('pointermove', handleGlobalPointerMove);
+window.addEventListener('pointerup', handleGlobalPointerUp);
+window.addEventListener('pointercancel', clearDragState);
+window.addEventListener('blur', clearDragState);
+
+function handleCardPointerLeave(event) {
+  if (!dragState?.dragging) return;
+  const target = event.relatedTarget?.closest?.('.card[data-drop-type]');
+  if (!target || target !== activeDropCard) {
+    setActiveDropCard(null);
+  }
+}
+
+function cancelDrag() {
+  clearDragState();
+  clearDropTargets();
+}
+
+async function groupProjectIntoTarget(sourceName, targetName, targetType) {
+  const res = await fetch('/api/groups/group', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sourceName, targetName, targetType }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to update group');
+  await loadProjects(true);
+}
+
+async function renameGroup(targetName, nextName) {
+  const res = await fetch(`/api/groups/${encodeURIComponent(targetName)}/rename`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: nextName }),
+  });
+  const data = await res.json();
+  if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to rename group');
+  await loadProjects(true);
+
+  if (currentCollection?.synthetic && currentCollection.targetName === targetName) {
+    const fresh = findCollectionByKey(targetName);
+    if (fresh) {
+      currentCollection = fresh;
+      navStack = ['grid', getCollectionKey(fresh)];
+      renderCurrentView();
+    } else {
+      navigate('grid');
+    }
+  }
+}
+
+async function dissolveGroup(targetName) {
+  const group = findCollectionByKey(targetName);
+  if (!group) return;
+  if (!window.confirm(`Dissolve group "${group.name}"?`)) return;
+
+  const res = await fetch(`/api/groups/${encodeURIComponent(targetName)}/dissolve`, {
+    method: 'POST',
+  });
+  const data = await res.json();
+  if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to dissolve group');
+
+  if (editingGroupKey === targetName) {
+    editingGroupKey = null;
+    editingGroupDraft = '';
+  }
+
+  await loadProjects(true);
+
+  if (currentCollection?.synthetic && currentCollection.targetName === targetName) {
+    navigate('grid');
+  }
+}
+
+async function handleCardDrop(event) {
+  return handleGlobalPointerUp(event);
+}
+
+function withAnimationDelay(cardHtml, delay) {
+  return cardHtml.replace(/<div class="([^"]*card[^"]*)"/, `<div class="$1" style="animation-delay:${delay}ms"`);
+}
+
 // --- Render cards ---
-function renderCard(p, onclick) {
+function renderCard(p, onclick, options = {}) {
   const s = statuses[p.fullName || p.name] || p;
   const status = s.status || 'stopped';
   const screenshotName = p.fullName || p.name;
   const thumbUrl = p.latestScreenshot ? `/screenshots/${encodeURIComponent(screenshotName)}/${p.latestScreenshot.thumb}` : '';
   const icons = { node: '⬡', html: '◇', python: '⬡', swift: '◇', collection: '⬡', electron: '◇', unknown: '○' };
   const badgeType = p.framework === 'electron-html' ? 'electron' : p.type;
+  const dragAttrs = options.draggable
+    ? ' onpointerdown="handleCardPointerDown(event)"'
+    : '';
+  const dropAttrs = options.dropType
+    ? ` data-drop-type="${escHtml(options.dropType)}" data-drop-name="${escHtml(options.dropName || (p.type === 'collection' && p.synthetic ? getCollectionKey(p) : getProjectKey(p)))}" onmouseleave="handleCardPointerLeave(event)"`
+    : '';
+  const cardClasses = ['card'];
+  if (options.draggable) cardClasses.push('draggable');
+  if (p.synthetic) cardClasses.push('synthetic-group');
+  const clickAttr = onclick ? ` onclick="${onclick}"` : '';
 
   if (p.type === 'collection') {
-    // Collection card with mini-grid of child thumbnails
+    // Collection card: real folders use a mini-grid, groups use the latest child's single thumbnail
     const children = p.children || [];
-    const thumbChildren = children.filter(c => c.latestScreenshot).slice(0, 4);
-    const miniHtml = thumbChildren.length > 0
-      ? `<div class="mini-grid">${thumbChildren.map(c => {
+    let thumbHtml = `<span class="placeholder">▣</span>`;
+    if (p.synthetic) {
+      const latestChild = [...children].sort((a, b) => getSortTimestamp(b) - getSortTimestamp(a))[0];
+      if (latestChild?.latestScreenshot) {
+        const cName = latestChild.fullName || latestChild.name;
+        thumbHtml = `<img src="/screenshots/${encodeURIComponent(cName)}/${latestChild.latestScreenshot.thumb}" draggable="false">`;
+      }
+    } else {
+      const thumbChildren = children.filter(c => c.latestScreenshot).slice(0, 4);
+      if (thumbChildren.length > 0) {
+        thumbHtml = `<div class="mini-grid">${thumbChildren.map(c => {
           const cName = c.fullName || c.name;
-          return `<img src="/screenshots/${encodeURIComponent(cName)}/${c.latestScreenshot.thumb}">`;
-        }).join('')}${Array(Math.max(0, 4 - thumbChildren.length)).fill('<div class="mini-placeholder"></div>').join('')}</div>`
-      : `<span class="placeholder">▣</span>`;
+          return `<img src="/screenshots/${encodeURIComponent(cName)}/${c.latestScreenshot.thumb}" draggable="false">`;
+        }).join('')}${Array(Math.max(0, 4 - thumbChildren.length)).fill('<div class="mini-placeholder"></div>').join('')}</div>`;
+      }
+    }
 
     return `
-      <div class="card" onclick="${onclick}">
+      <div class="${cardClasses.join(' ')}"${clickAttr}${dropAttrs}>
+        ${p.synthetic ? `<button class="group-dissolve-btn" title="Dissolve group" onclick="event.stopPropagation(); dissolveGroup('${escJs(getCollectionKey(p))}').catch(err => alert(err.message))">x</button>` : ''}
         <div class="card-thumb">
-          ${miniHtml}
-          <span class="child-count">${p.launchableChildren || 0} projects</span>
+          ${thumbHtml}
         </div>
         <div class="card-info">
-          <div class="card-name">${escHtml(p.name.replace(/[-_]/g, ' '))}</div>
-          <div style="font-size:11px;color:var(--text2)">${p.childCount} items</div>
+          <div class="card-main">
+            ${p.synthetic ? renderGroupNameEditor(p, 'card') : `<div class="card-name">${escHtml(formatProjectLabel(p.name))}</div>`}
+          </div>
+          <div style="font-size:11px;color:var(--text2)">${p.synthetic ? `${p.childCount} projects` : `${p.childCount} items`}</div>
         </div>
       </div>`;
   }
@@ -526,13 +983,15 @@ function renderCard(p, onclick) {
   const commitStamp = formatCommitStamp(p);
 
   return `
-    <div class="card" data-name="${apiName}">
-      <div class="card-thumb" onclick="${p.launchable ? `launchOrOpen('${apiName}', ${s.port || p.port || 'null'})` : `showDetail('${apiName}')`}">
-        ${thumbUrl ? `<img src="${thumbUrl}" alt="${escHtml(p.name)}">` : `<span class="placeholder">${icons[p.type] || '○'}</span>`}
+    <div class="${cardClasses.join(' ')}" data-name="${escHtml(apiName)}"${dragAttrs}${dropAttrs}>
+      <div class="card-thumb" onclick="${p.launchable ? `launchOrOpen('${apiName}')` : `showDetail('${apiName}')`}">
+        ${thumbUrl ? `<img src="${thumbUrl}" alt="${escHtml(p.name)}" draggable="false">` : `<span class="placeholder">${icons[p.type] || '○'}</span>`}
         <div class="status-dot card-status ${status}" ${isRunning ? `onclick="event.stopPropagation();stopFromCard('${apiName}')" title="Click to stop"` : ''}></div>
       </div>
       <div class="card-info" onclick="showDetail('${apiName}')">
-        <div class="card-name">${escHtml(p.name.replace(/[-_]/g, ' '))}</div>
+        <div class="card-main">
+          <div class="card-name">${escHtml(formatProjectLabel(p.name))}</div>
+        </div>
         ${p.isGit ? `<div class="card-meta">${commitStamp ? `<div class="card-commit">${escHtml(commitStamp)}</div>` : ''}<div class="card-plus">+</div></div>` : ''}
       </div>
     </div>`;
@@ -542,37 +1001,110 @@ function renderCard(p, onclick) {
 let initialLoad = true;
 function renderGrid() {
   const grid = document.getElementById('grid');
-  const filtered = applyFilter(projects);
-  if (filtered.length === 0 && !initialLoad) {
+  const topLevelFolders = projects.filter(p => p.type === 'collection' && !p.synthetic);
+  const syntheticGroups = projects.filter(p => p.type === 'collection' && p.synthetic);
+  const topLevelProjects = projects.filter(p => p.type !== 'collection');
+  const folderChildren = topLevelFolders.flatMap(folder => folder.children || []);
+  const groupMembers = syntheticGroups.flatMap(group => group.children || []);
+  const groupedProjectKeys = new Set(groupMembers.map(getProjectKey));
+
+  if (currentFilter === 'folders') {
+    const folders = getVisibleCollections(topLevelFolders);
+    const regular = sortProjects(applyFilter(topLevelProjects));
+
+    if (folders.length === 0 && regular.length === 0 && !initialLoad) {
+      grid.innerHTML = '<div class="empty"><h2>No projects found</h2></div>';
+      return;
+    }
+    if (folders.length === 0 && regular.length === 0) return; // Still loading
+
+    let html = '';
+    let idx = 0;
+
+    if (folders.length > 0) {
+      html += '<div class="section-label">Folders</div>';
+      html += folders.map(p => {
+        const card = renderCard(
+          p,
+          `navigate('collection', findCollectionByKey('${escJs(getCollectionKey(p))}'))`
+        );
+        return withAnimationDelay(card, idx++ * 40);
+      }).join('');
+    }
+
+    if (regular.length > 0) {
+      if (folders.length > 0) html += '<div class="section-label">Projects</div>';
+      html += regular.map(p => {
+        const canGroup = !p.parentName;
+        const card = renderCard(p, null, canGroup ? { draggable: true, dropType: 'project' } : {});
+        return withAnimationDelay(card, idx++ * 40);
+      }).join('');
+    }
+
+    grid.innerHTML = html;
+    initialLoad = false;
+    return;
+  }
+
+  if (currentFilter === 'groups') {
+    const groups = getVisibleCollections(syntheticGroups);
+    const regular = sortProjects(applyFilter([
+      ...topLevelProjects,
+      ...folderChildren,
+    ].filter(project => !groupedProjectKeys.has(getProjectKey(project)))));
+
+    if (groups.length === 0 && regular.length === 0 && !initialLoad) {
+      grid.innerHTML = '<div class="empty"><h2>No groups found</h2></div>';
+      return;
+    }
+    if (groups.length === 0 && regular.length === 0) return; // Still loading
+
+    let html = '';
+    let idx = 0;
+
+    if (groups.length > 0) {
+      html += '<div class="section-label">Groups</div>';
+      html += groups.map(group => {
+        const card = renderCard(
+          group,
+          `navigate('collection', findCollectionByKey('${escJs(getCollectionKey(group))}'))`,
+          { dropType: 'group', dropName: getCollectionKey(group) }
+        );
+        return withAnimationDelay(card, idx++ * 40);
+      }).join('');
+    }
+
+    if (regular.length > 0) {
+      html += '<div class="section-label">Projects</div>';
+      html += regular.map(project => {
+        const card = renderCard(project, null, { draggable: true, dropType: 'project' });
+        return withAnimationDelay(card, idx++ * 40);
+      }).join('');
+    }
+
+    grid.innerHTML = html;
+    initialLoad = false;
+    return;
+  }
+
+  const visibleProjects = sortProjects(applyFilter([
+    ...topLevelProjects,
+    ...folderChildren,
+  ]));
+
+  if (visibleProjects.length === 0 && !initialLoad) {
     grid.innerHTML = '<div class="empty"><h2>No projects found</h2></div>';
     return;
   }
-  if (filtered.length === 0) return; // Still loading
-
-  // Separate folders from projects
-  const folders = sortProjects(filtered.filter(p => p.type === 'collection'));
-  const regular = sortProjects(filtered.filter(p => p.type !== 'collection'));
+  if (visibleProjects.length === 0) return; // Still loading
 
   let html = '';
   let idx = 0;
-
-  // Folders first in their own section
-  if (folders.length > 0) {
-    html += '<div class="section-label">Folders</div>';
-    html += folders.map((p, i) => {
-      const card = renderCard(p, `navigate('collection', projects.find(x => x.name === '${p.name.replace(/'/g, "\\'")}'))`);
-      return card.replace('<div class="card"', `<div class="card" style="animation-delay:${idx++ * 40}ms"`);
-    }).join('');
-  }
-
-  // Projects
-  if (regular.length > 0) {
-    if (folders.length > 0) html += '<div class="section-label">Projects</div>';
-    html += regular.map(p => {
-      const card = renderCard(p);
-      return card.replace('<div class="card"', `<div class="card" style="animation-delay:${idx++ * 40}ms"`);
-    }).join('');
-  }
+  html += visibleProjects.map(p => {
+    const canGroup = !p.parentName;
+    const card = renderCard(p, null, canGroup ? { draggable: true, dropType: 'project' } : {});
+    return withAnimationDelay(card, idx++ * 40);
+  }).join('');
 
   grid.innerHTML = html;
   initialLoad = false;
@@ -584,14 +1116,14 @@ function renderCollectionGrid() {
   if (!currentCollection?.children) { grid.innerHTML = '<div class="empty"><h2>No sub-projects</h2></div>'; return; }
 
   // Re-fetch enriched children from the projects array
-  const fresh = projects.find(p => p.name === currentCollection.name);
+  const fresh = findCollectionByKey(getCollectionKey(currentCollection));
   if (fresh) currentCollection = fresh;
 
   const filtered = sortProjects(applyFilter(currentCollection.children || []));
   if (filtered.length === 0) { grid.innerHTML = '<div class="empty"><h2>No matching projects</h2></div>'; return; }
 
   grid.innerHTML = filtered.map((p, i) => {
-    return renderCard(p).replace('<div class="card"', `<div class="card" style="animation-delay:${i * 40}ms"`);
+    return withAnimationDelay(renderCard(p), i * 40);
   }).join('');
 }
 
@@ -653,7 +1185,7 @@ function renderDetail() {
           ${!isRunning
             ? `<button class="btn btn-start" onclick="startProj(${esc(apiName)})" ${!p.launchable ? 'disabled' : ''}>▶ Start</button>`
             : `<button class="btn btn-stop" onclick="stopProj(${esc(apiName)})">■ Stop</button>
-               <button class="btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)" onclick="window.open('http://localhost:${s.port || p.port}','_blank')">↗ Open</button>`}
+               <button class="btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border)" onclick="openProjectUrl(${esc(apiName)})">↗ Open</button>`}
         </div>
         <div class="status-grid">
           <div class="detail-status"><div class="label">Status</div><div class="value" style="color:${isRunning ? 'var(--green)' : 'var(--text2)'}">${status}</div></div>
@@ -722,17 +1254,42 @@ async function setProjectImage(apiName, relPath) {
 }
 
 // --- Card actions ---
-async function launchOrOpen(name, port) {
+function findProjectByName(name) {
+  if (currentProject && (currentProject.fullName || currentProject.name) === name) return currentProject;
+  const direct = projects.find(p => (p.fullName || p.name) === name || p.name === name);
+  if (direct) return direct;
+  for (const project of projects) {
+    if (!project.children) continue;
+    const child = project.children.find(c => (c.fullName || c.name) === name || c.name === name);
+    if (child) return child;
+  }
+  return null;
+}
+
+function getProjectUrl(name, explicitPort = null) {
+  const project = findProjectByName(name);
+  const status = statuses[name] || (project ? statuses[project.fullName || project.name] : null);
+  const protocol = status?.protocol || project?.protocol || 'http';
+  const port = explicitPort || status?.port || project?.port;
+  return port ? `${protocol}://localhost:${port}` : null;
+}
+
+function openProjectUrl(name, explicitPort = null) {
+  const url = getProjectUrl(name, explicitPort);
+  if (url) window.open(url, '_blank');
+}
+
+async function launchOrOpen(name) {
   const s = statuses[name];
   if (s && s.status === 'running' && s.port) {
-    window.open(`http://localhost:${s.port}`, '_blank');
+    openProjectUrl(name);
     return;
   }
   // Start it
   const res = await fetch(`/api/projects/${encodeURIComponent(name)}/start`, { method: 'POST' });
   const data = await res.json();
   if (data.ok && data.port) {
-    window.open(`http://localhost:${data.port}`, '_blank');
+    openProjectUrl(name, data.port);
   } else if (data.ok && data.nativeApp) {
     // Native app launched, nothing to open in browser
   } else if (!data.ok) {
@@ -752,7 +1309,7 @@ async function startProj(name) {
   const res = await fetch(`/api/projects/${encodeURIComponent(name)}/start`, { method: 'POST' });
   const data = await res.json();
   if (!data.ok) { alert(data.error || 'Failed to start'); }
-  else if (data.port) { window.open(`http://localhost:${data.port}`, '_blank'); }
+  else if (data.port) { openProjectUrl(name, data.port); }
   const r = await fetch(`/api/projects/${encodeURIComponent(name)}`);
   currentProject = await r.json();
   renderDetail();
@@ -804,10 +1361,12 @@ function closeModal() { document.getElementById('modal').classList.remove('activ
 
 // --- Utils ---
 function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function escJs(s) { return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
 
 // --- Init ---
 updateSortButton();
 navigate('grid');
+loadMeta();
 loadProjects();
 </script>
 </body>
