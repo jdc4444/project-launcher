@@ -39,19 +39,17 @@
   .breadcrumb .sep { color: var(--text2); font-size: 14px; margin: 0 2px; }
   .breadcrumb .current { color: var(--text); font-size: 18px; font-weight: 600; }
 
-  .search { flex: 1; max-width: 400px; padding: 8px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; outline: none; }
+  .search { flex: 1; max-width: 400px; height: 32px; padding: 0 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 14px; outline: none; }
   .search:focus { border-color: var(--accent); }
-  .filters { display: flex; gap: 6px; }
-  .filter-chip { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-size: 12px; cursor: pointer; transition: all 0.15s; }
+  .filters { display: flex; gap: 6px; align-items: center; }
+  .filter-chip { height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text2); font-size: 11px; cursor: pointer; transition: all 0.15s; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; }
   .filter-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   .filter-chip:hover:not(.active) { border-color: var(--text2); }
   .topbar-right { display: flex; gap: 6px; margin-left: auto; align-items: center; }
-  .sort-btn { background: none; border: 1px solid var(--border); color: var(--text2); padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 11px; white-space: nowrap; }
+  .sort-btn { height: 32px; background: none; border: 1px solid var(--border); color: var(--text2); padding: 0 10px; border-radius: 8px; cursor: pointer; font-size: 11px; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; }
   .sort-btn:hover { border-color: var(--text); color: var(--text); }
-  .stop-all-btn { background: none; border: 1px solid var(--border); color: var(--red); padding: 5px 10px; border-radius: 8px; cursor: pointer; font-size: 11px; opacity: 0.7; }
+  .stop-all-btn { height: 32px; background: none; border: 1px solid var(--border); color: var(--red); padding: 0 10px; border-radius: 8px; cursor: pointer; font-size: 11px; opacity: 0.7; display: inline-flex; align-items: center; justify-content: center; }
   .stop-all-btn:hover { border-color: var(--red); opacity: 1; }
-  .refresh-btn { background: none; border: 1px solid var(--border); color: var(--text2); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
-  .refresh-btn:hover { border-color: var(--text); color: var(--text); }
 
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; padding: 24px; }
   .section-label { grid-column: 1 / -1; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text2); padding: 8px 0 0; }
@@ -68,6 +66,8 @@
   .card-info { padding: 7px 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
   .card-info:hover { background: var(--surface2); }
   .card-name { font-size: 14px; font-weight: 600; }
+  .card-meta { display: flex; align-items: center; gap: 8px; }
+  .card-commit { font-size: 10px; color: var(--text2); opacity: 0.8; font-family: var(--mono); white-space: nowrap; }
   .card-plus { font-size: 16px; color: var(--text2); opacity: 0.4; transition: opacity 0.15s; }
   .card-info:hover .card-plus { opacity: 1; }
 
@@ -181,9 +181,8 @@
     <button class="filter-chip" data-filter="utility" onclick="setFilter('utility', this)">Utility</button>
   </div>
   <div class="topbar-right">
-    <button class="sort-btn" id="sortBtn" onclick="cycleSort()">Recent</button>
-    <button class="stop-all-btn" id="stopAllBtn" onclick="stopAll()">Stop All</button>
-    <button class="refresh-btn" onclick="loadProjects(true)">↻</button>
+    <button class="sort-btn" id="sortBtn" onclick="cycleSort()" title="Change sort">↓</button>
+    <button class="stop-all-btn" id="stopAllBtn" onclick="stopAll()" title="Stop all">&#9632;</button>
   </div>
 </div>
 
@@ -201,7 +200,7 @@
 <script>
 let projects = [];
 let currentFilter = 'all';
-let currentSort = 'recent'; // 'recent', 'oldest', 'alpha'
+let currentSort = 'recent_desc'; // 'recent_desc', 'recent_asc', 'alpha'
 let currentProject = null;
 let currentCollection = null; // When viewing inside a collection
 let statuses = {};
@@ -375,36 +374,118 @@ function applyFilter(list) {
   if (q) list = list.filter(p => p.name.toLowerCase().includes(q) || (p.framework || '').includes(q));
   return list;
 }
+function updateSortButton() {
+  const btn = document.getElementById('sortBtn');
+  if (!btn) return;
+  const labels = {
+    recent_desc: '&darr;',
+    recent_asc: '&uarr;',
+    alpha: 'ABC',
+  };
+  const titles = {
+    recent_desc: 'Newest first',
+    recent_asc: 'Oldest first',
+    alpha: 'Alphabetical',
+  };
+  btn.innerHTML = labels[currentSort] || '&darr;';
+  btn.title = titles[currentSort] || 'Change sort';
+}
+function parseCommitDate(dateStr) {
+  if (!dateStr) return 0;
+  const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2}) ([+-])(\d{2})(\d{2})$/);
+  if (m) {
+    const [, y, mo, d, h, mi, s, sign, tzh, tzm] = m;
+    const utcMs = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s));
+    const offsetMinutes = Number(tzh) * 60 + Number(tzm);
+    return utcMs - (sign === '+' ? offsetMinutes : -offsetMinutes) * 60 * 1000;
+  }
+  const ts = Date.parse(dateStr);
+  return Number.isFinite(ts) ? ts : 0;
+}
+function formatCommitStamp(item) {
+  const rawTs = item.currentCommit?.timestamp != null
+    ? Number(item.currentCommit.timestamp) * 1000
+    : getSortTimestamp(item);
+  if (!rawTs) return '';
+
+  const d = new Date(rawTs);
+  if (Number.isNaN(d.getTime())) return '';
+
+  const now = new Date();
+  const weekStart = new Date(now);
+  const mondayOffset = (weekStart.getDay() + 6) % 7;
+  weekStart.setDate(weekStart.getDate() - mondayOffset);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const nextWeek = new Date(weekStart);
+  nextWeek.setDate(nextWeek.getDate() + 7);
+
+  const time = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    hour12: true,
+  }).format(d).replace(/\s/g, '');
+
+  if (d >= weekStart && d < nextWeek) {
+    const weekday = new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(d);
+    return `${weekday} ${time}`;
+  }
+
+  const monthDay = new Intl.DateTimeFormat('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+  return `${monthDay} ${time}`;
+}
+function getSortTimestamp(item) {
+  if (item.currentCommit?.timestamp != null) return Number(item.currentCommit.timestamp) * 1000;
+  if (item.currentCommit?.date) return parseCommitDate(item.currentCommit.date);
+  if (item.type === 'collection' && item.children?.length) {
+    let best = 0;
+    for (const child of item.children) {
+      const ts = child.currentCommit?.timestamp != null
+        ? Number(child.currentCommit.timestamp) * 1000
+        : (child.currentCommit?.date ? parseCommitDate(child.currentCommit.date) : 0);
+      if (ts > best) best = ts;
+    }
+    return best;
+  }
+  return 0;
+}
 function sortProjects(list) {
   const copy = [...list];
   if (currentSort === 'alpha') {
     copy.sort((a, b) => a.name.localeCompare(b.name));
   } else {
-    // Sort by commit date, most recent first (or oldest first)
+    // Sort by commit date, newest first or oldest first.
+    // Collections use the newest child commit so folders still sort meaningfully.
     copy.sort((a, b) => {
-      const da = a.currentCommit?.date ? new Date(a.currentCommit.date) : new Date(0);
-      const db = b.currentCommit?.date ? new Date(b.currentCommit.date) : new Date(0);
-      return currentSort === 'recent' ? db - da : da - db;
+      const da = getSortTimestamp(a);
+      const db = getSortTimestamp(b);
+      const diff = currentSort === 'recent_desc' ? db - da : da - db;
+      return diff || a.name.localeCompare(b.name);
     });
   }
   return copy;
 }
-function cycleSort() {
-  const order = ['recent', 'oldest', 'alpha'];
-  currentSort = order[(order.indexOf(currentSort) + 1) % order.length];
-  const labels = { recent: 'Recent', oldest: 'Oldest', alpha: 'A-Z' };
-  document.getElementById('sortBtn').textContent = labels[currentSort];
+function setSort(sort) {
+  currentSort = sort;
+  updateSortButton();
   if (currentCollection) renderCollectionGrid();
   else renderGrid();
+}
+function cycleSort() {
+  const order = ['recent_desc', 'recent_asc', 'alpha'];
+  const idx = order.indexOf(currentSort);
+  setSort(order[(idx + 1) % order.length]);
 }
 async function stopAll() {
   const running = Object.entries(statuses).filter(([, s]) => s.status === 'running');
   if (running.length === 0) return;
-  document.getElementById('stopAllBtn').textContent = 'Stopping...';
+  document.getElementById('stopAllBtn').innerHTML = '...';
   for (const [name] of running) {
     await fetch(`/api/projects/${encodeURIComponent(name)}/stop`, { method: 'POST' });
   }
-  document.getElementById('stopAllBtn').textContent = 'Stop All';
+  document.getElementById('stopAllBtn').innerHTML = '&#9632;';
 }
 
 // --- Render cards ---
@@ -442,6 +523,7 @@ function renderCard(p, onclick) {
 
   const apiName = (p.fullName || p.name).replace(/'/g, "\\'");
   const isRunning = status === 'running';
+  const commitStamp = formatCommitStamp(p);
 
   return `
     <div class="card" data-name="${apiName}">
@@ -451,7 +533,7 @@ function renderCard(p, onclick) {
       </div>
       <div class="card-info" onclick="showDetail('${apiName}')">
         <div class="card-name">${escHtml(p.name.replace(/[-_]/g, ' '))}</div>
-        ${p.isGit ? '<div class="card-plus">+</div>' : ''}
+        ${p.isGit ? `<div class="card-meta">${commitStamp ? `<div class="card-commit">${escHtml(commitStamp)}</div>` : ''}<div class="card-plus">+</div></div>` : ''}
       </div>
     </div>`;
 }
@@ -468,7 +550,7 @@ function renderGrid() {
   if (filtered.length === 0) return; // Still loading
 
   // Separate folders from projects
-  const folders = filtered.filter(p => p.type === 'collection');
+  const folders = sortProjects(filtered.filter(p => p.type === 'collection'));
   const regular = sortProjects(filtered.filter(p => p.type !== 'collection'));
 
   let html = '';
@@ -724,6 +806,7 @@ function closeModal() { document.getElementById('modal').classList.remove('activ
 function escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 // --- Init ---
+updateSortButton();
 navigate('grid');
 loadProjects();
 </script>
